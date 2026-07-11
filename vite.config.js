@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: "/hollman-dilworth-project-controls/",
+  base: "/project-spines/",
+  plugins: [react()],
 });

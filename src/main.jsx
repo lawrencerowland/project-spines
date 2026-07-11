@@ -1,88 +1,162 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import ScheduleSpineExplainer from "./ScheduleSpineExplainer.jsx";
+import StandaloneExperiment from "./StandaloneExperiment.jsx";
 import "./styles.css";
 
-const attempts = [
+const experimentBase = import.meta.env.BASE_URL + "experiments/";
+
+const tabs = [
   {
-    id: "spine",
-    label: "Attempt 1",
-    title: "Spine explorer",
+    id: "theory-explorer",
+    eyebrow: "Theory",
+    title: "Schedule spine explorer",
     summary:
-      "The current interactive walkthrough: Dilworth lanes, Hollman's spine result, review-loop limits, and the no-spine boundary.",
-    content: <ScheduleSpineExplainer />,
+      "The native React walkthrough: precedence and incomparability, Dilworth lanes, spines, infinite limits, P5, and the theorem classifier.",
+    kind: "native",
   },
   {
-    id: "cases",
-    label: "Attempt 2",
-    title: "Project controls cases",
+    id: "shed-construction",
+    eyebrow: "Finite construction",
+    title: "Mountain refuge shed",
     summary:
-      "A future version can test named project-control situations against the schedule-shape classifier.",
-    content: (
-      <section className="attempt-note">
-        <h2>Project controls cases</h2>
-        <p>
-          This tab is reserved for case-led attempts: stage gates, rolling-wave
-          plans, review loops, and control-account structures translated into
-          the same spine/front language.
-        </p>
-      </section>
-    ),
+      "A five-step finite-DAG construction with three verified minimum antichain partitions and a separate CPM selector.",
+    kind: "embedded",
+    src: experimentBase + "shed-spine-construction.html",
   },
   {
-    id: "questions",
-    label: "Attempt 3",
-    title: "Question generator",
+    id: "vacillation-boundary",
+    eyebrow: "Infinite boundary",
+    title: "Shed and vacillation",
     summary:
-      "A future version can turn each theorem boundary into diagnostic questions for a project controls audience.",
-    content: (
-      <section className="attempt-note">
-        <h2>Question generator</h2>
-        <p>
-          This tab is reserved for a working prompt surface that asks whether a
-          schedule is finite, locally finite, width-limited, vacillating, or
-          sitting near the nested-infinite tower pathology.
-        </p>
-      </section>
-    ),
+      "The complete shed certificate followed by the lexicographic-versus-Cartesian vacillation explorer.",
+    kind: "embedded",
+    src: experimentBase + "shed-and-vacillation.html",
+  },
+  {
+    id: "controls-briefing",
+    eyebrow: "Application",
+    title: "Project-controls briefing",
+    summary:
+      "The director-facing WBS, two spine selections, antichain slices, churn test, live certificate, briefing story, copy action, and JSON export.",
+    kind: "embedded",
+    src: experimentBase + "project-controls-briefing.html",
+    allow: "clipboard-write",
   },
 ];
 
+const knownIds = new Set(tabs.map((tab) => tab.id));
+
+function tabFromHash() {
+  const id = window.location.hash.replace(/^#/, "");
+  return knownIds.has(id) ? id : tabs[0].id;
+}
+
 function App() {
-  const [activeId, setActiveId] = useState(attempts[0].id);
-  const active = attempts.find((attempt) => attempt.id === activeId);
+  const [activeId, setActiveId] = useState(tabFromHash);
+
+  useEffect(() => {
+    const onHashChange = () => setActiveId(tabFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function selectTab(id, moveFocus = false) {
+    setActiveId(id);
+    window.history.replaceState(null, "", "#" + id);
+    if (moveFocus) {
+      window.requestAnimationFrame(() => {
+        document.getElementById("tab-" + id)?.focus();
+      });
+    }
+  }
+
+  function handleTabKey(event, index) {
+    let nextIndex = null;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectTab(tabs[nextIndex].id, true);
+  }
+
+  const active = tabs.find((tab) => tab.id === activeId);
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <p className="kicker">Project controls / posets / schedule theory</p>
-        <h1>Hollman and Dilworth Project Controls Lab</h1>
+    <main className="project-spines-shell">
+      <header className="project-header">
+        <p className="project-kicker">Project controls / posets / schedule structure</p>
+        <h1>Project Spines</h1>
         <p>
-          A growing set of interactive attempts at making schedule-spine theory
-          useful to project controls thinkers.
+          Four complete, preserved experiments: one native React theory explorer
+          and three isolated interactive applications brought together behind a
+          single durable tabbed interface.
         </p>
       </header>
 
-      <nav className="attempt-tabs" aria-label="Problem-area attempts">
-        {attempts.map((attempt) => (
-          <button
-            key={attempt.id}
-            className={attempt.id === activeId ? "active" : ""}
-            type="button"
-            onClick={() => setActiveId(attempt.id)}
-          >
-            <span>{attempt.label}</span>
-            {attempt.title}
-          </button>
-        ))}
+      <nav className="project-tabs" role="tablist" aria-label="Project Spines views">
+        {tabs.map((tab, index) => {
+          const selected = tab.id === activeId;
+          return (
+            <button
+              id={"tab-" + tab.id}
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={"panel-" + tab.id}
+              tabIndex={selected ? 0 : -1}
+              className={selected ? "active" : ""}
+              onClick={() => selectTab(tab.id)}
+              onKeyDown={(event) => handleTabKey(event, index)}
+            >
+              <span>{tab.eyebrow}</span>
+              {tab.title}
+            </button>
+          );
+        })}
       </nav>
 
-      <section className="attempt-intro" aria-live="polite">
+      <section className="active-view-intro" aria-live="polite">
+        <p>{active.eyebrow}</p>
         <h2>{active.title}</h2>
-        <p>{active.summary}</p>
+        <span>{active.summary}</span>
       </section>
 
-      {active.content}
+      <div className="project-panels">
+        {tabs.map((tab) => {
+          const selected = tab.id === activeId;
+          return (
+            <section
+              id={"panel-" + tab.id}
+              key={tab.id}
+              role="tabpanel"
+              aria-labelledby={"tab-" + tab.id}
+              hidden={!selected}
+              className={tab.kind === "native" ? "tab-panel native-panel" : "tab-panel"}
+            >
+              {tab.kind === "native" ? (
+                <ScheduleSpineExplainer />
+              ) : (
+                <StandaloneExperiment
+                  src={tab.src}
+                  title={tab.title}
+                  description={tab.summary}
+                  allow={tab.allow}
+                />
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <footer className="project-footer">
+        The standalone applications remain same-origin documents so their
+        original controls, state, downloads, timers, IDs, and styles stay
+        isolated and functional.
+      </footer>
     </main>
   );
 }

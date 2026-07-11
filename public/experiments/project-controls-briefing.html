@@ -1,0 +1,1407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollom Spine Demo for Project Controls</title>
+<style>
+:root {
+  --bg: #f5f6f4;
+  --panel: #ffffff;
+  --ink: #16202a;
+  --muted: #5d6875;
+  --line: #d7dce1;
+  --soft: #eef2f5;
+  --spine: #bd3147;
+  --critical: #a86400;
+  --slice: #2166a5;
+  --chain: #7b4bb2;
+  --ok: #24785d;
+  --warn: #9a5b00;
+  --bad: #9e2b2b;
+  --shadow: 0 12px 32px rgba(22, 32, 42, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.42;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+
+button:hover { border-color: #9aa8b5; }
+button:active { transform: translateY(1px); }
+button.active {
+  color: white;
+  border-color: transparent;
+}
+button.spine.active { background: var(--spine); }
+button.critical.active { background: var(--critical); }
+button.slice.active { background: var(--slice); }
+button.primary { background: #16202a; color: white; border-color: #16202a; }
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+header {
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+}
+
+.topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.goal {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e8eef4;
+  color: #29465f;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: clamp(1.55rem, 2.7vw, 2.35rem);
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  max-width: 1080px;
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+main {
+  padding: 18px 24px 30px;
+  display: grid;
+  gap: 16px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.55fr) minmax(330px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.panel-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-head h2, .panel-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.panel-body { padding: 14px 16px 16px; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.key {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.swatch {
+  width: 18px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.swatch.spine { background: var(--spine); }
+.swatch.critical { background: var(--critical); }
+.swatch.slice { background: var(--slice); }
+.swatch.chain { background: var(--chain); }
+
+.graph-wrap {
+  height: min(64vh, 620px);
+  min-height: 440px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(0deg, rgba(22,32,42,0.035) 1px, transparent 1px) 0 0/100% 28px,
+    linear-gradient(90deg, rgba(22,32,42,0.035) 1px, transparent 1px) 0 0/28px 100%,
+    #fbfcfd;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.slice-band {
+  fill: rgba(33, 102, 165, 0.08);
+  stroke: rgba(33, 102, 165, 0.22);
+  stroke-width: 1;
+}
+
+.edge {
+  stroke: #7b8794;
+  stroke-width: 2;
+  marker-end: url(#arrow);
+}
+
+.edge.dim { opacity: 0.2; }
+.edge.spine-edge { stroke: var(--spine); stroke-width: 5; marker-end: url(#arrow-spine); }
+.edge.critical-edge { stroke: var(--critical); stroke-width: 4; marker-end: url(#arrow-critical); }
+.edge.spine-edge.critical-edge { stroke: var(--spine); stroke-width: 6; marker-end: url(#arrow-spine); }
+.edge.hover-edge { stroke: var(--chain); stroke-width: 4; marker-end: url(#arrow-chain); }
+
+.node rect {
+  fill: #ffffff;
+  stroke: #344251;
+  stroke-width: 1.6;
+  rx: 8;
+  ry: 8;
+  filter: drop-shadow(0 5px 9px rgba(22,32,42,0.09));
+}
+
+.node text {
+  fill: var(--ink);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.node .duration {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.node.slice rect { fill: rgba(33, 102, 165, 0.12); stroke: var(--slice); stroke-width: 3; }
+.node.spine rect { stroke: var(--spine); stroke-width: 4; }
+.node.critical rect { stroke: var(--critical); stroke-width: 3.5; }
+.node.spine.critical rect { stroke: var(--spine); stroke-width: 4.5; }
+.node.hover rect { stroke: var(--chain); stroke-width: 4; }
+.node.selected rect { filter: drop-shadow(0 0 0 rgba(0,0,0,0)) drop-shadow(0 0 14px rgba(33,102,165,0.35)); }
+.node.dim { opacity: 0.36; }
+
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.slice-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.slice-label {
+  color: var(--muted);
+  font-size: 0.93rem;
+  min-width: 260px;
+}
+
+.brief-title {
+  font-size: 1.03rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.brief-copy {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+
+.stat {
+  background: var(--soft);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.stat span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.step-list {
+  display: grid;
+  gap: 9px;
+}
+
+.step {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfd;
+}
+
+.step.active {
+  border-color: rgba(33,102,165,0.45);
+  background: rgba(33,102,165,0.08);
+}
+
+.step-title {
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.inspector {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.inspector h3 {
+  margin: 0 0 6px;
+  font-size: 0.98rem;
+}
+
+.inspector p {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #edf1f4;
+  color: #344251;
+}
+.chip.spine { background: rgba(189,49,71,0.12); color: var(--spine); }
+.chip.critical { background: rgba(168,100,0,0.13); color: var(--critical); }
+.chip.slice { background: rgba(33,102,165,0.13); color: var(--slice); }
+.chip.ok { background: rgba(36,120,93,0.13); color: var(--ok); }
+.chip.warn { background: rgba(154,91,0,0.13); color: var(--warn); }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.briefing {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+
+.prose h2, .prose h3 {
+  margin: 0 0 8px;
+}
+
+.prose p {
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+
+.easy-hard {
+  display: grid;
+  gap: 8px;
+}
+
+.rowline {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.rowline b {
+  color: var(--ink);
+}
+
+.rowline span {
+  color: var(--muted);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll table {
+  min-width: 780px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: #344251;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  color: var(--muted);
+}
+
+.callout {
+  border-left: 4px solid var(--spine);
+  padding: 10px 12px;
+  background: rgba(189,49,71,0.07);
+  border-radius: 0 8px 8px 0;
+}
+
+.callout p { margin: 0; color: #51323a; }
+
+.mini {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fbfcfd;
+}
+
+.mini svg {
+  height: 210px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.validation-status {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ok);
+  border-radius: 8px;
+  background: rgba(36,120,93,0.07);
+  color: #285f4e;
+  padding: 9px 10px;
+}
+
+.validation-status.bad {
+  border-left-color: var(--bad);
+  background: rgba(158,43,43,0.07);
+  color: var(--bad);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: #16202a;
+  color: white;
+  border-radius: 999px;
+  padding: 9px 14px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 20;
+}
+
+.toast.show { opacity: 1; }
+
+@media (max-width: 1080px) {
+  .workspace, .briefing, .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .workspace { align-items: stretch; }
+}
+
+@media (max-width: 720px) {
+  header, main { padding-left: 14px; padding-right: 14px; }
+  .graph-wrap { min-height: 500px; height: 66vh; }
+  .status-grid { grid-template-columns: 1fr; }
+  .panel-head { align-items: flex-start; flex-direction: column; }
+  .slice-label { min-width: 0; width: 100%; }
+  .rowline { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="topline">
+      <span class="goal">/goal artifact</span>
+      <span class="chip ok">standalone HTML</span>
+      <span class="chip warn">project-controls explainer</span>
+    </div>
+    <h1>Hollom Spine Demo: Critical Path Is Not the Whole Control Story</h1>
+    <p class="subtitle">An interactive toy WBS showing why antichain slices matter and how a structure-selected spine and a duration-selected critical path answer different questions—even when the same chain can qualify as both.</p>
+  </header>
+
+  <main>
+    <section class="workspace">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Toy WBS dependency poset</h2>
+          <div class="legend" aria-label="Legend">
+            <span class="key"><span class="swatch critical"></span>Duration-selected path</span>
+            <span class="key"><span class="swatch spine"></span>Structure-selected spine</span>
+            <span class="key"><span class="swatch slice"></span>Current slice</span>
+            <span class="key"><span class="swatch chain"></span>Hover chain</span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="toolbar" aria-label="Graph controls">
+            <button class="critical active" id="criticalBtn" type="button">Show duration-selected path</button>
+            <button class="spine active" id="spineBtn" type="button">Show structure-selected spine</button>
+            <button class="slice active" id="sliceBtn" type="button">Show slices</button>
+            <button id="churnBtn" type="button">Add churn task</button>
+            <button id="resetBtn" type="button">Reset</button>
+          </div>
+
+          <div class="graph-wrap" id="graphWrap">
+            <svg id="graph" viewBox="0 0 1080 450" role="img" aria-labelledby="graphTitle graphDesc">
+              <title id="graphTitle">Toy WBS showing two spine selections and antichain slices</title>
+              <desc id="graphDesc">Tasks are drawn as nodes with arrows for must-finish-before relationships. Amber shows the path selected by duration, red shows a chain selected from the dependency structure, and blue shows one antichain slice at a time. Both displayed chains meet every slice and therefore both qualify as spines for this certificate.</desc>
+            </svg>
+          </div>
+
+          <div class="controls-row">
+            <div class="slice-control">
+              <button id="prevSlice" type="button">Previous slice</button>
+              <button id="nextSlice" type="button">Next slice</button>
+              <button id="autoSlice" type="button">Auto sweep</button>
+              <span class="slice-label" id="sliceLabel"></span>
+            </div>
+            <div class="actions">
+              <button id="copyLineBtn" type="button">Copy one-liner</button>
+              <button id="downloadBtn" type="button">Download JSON</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Director briefing</h2>
+          <button class="primary" id="nextStory" type="button">Explain next</button>
+        </div>
+        <div class="panel-body">
+          <p class="brief-title" id="storyTitle"></p>
+          <p class="brief-copy" id="storyCopy"></p>
+
+          <div class="status-grid">
+            <div class="stat"><strong id="taskCount">0</strong><span>tasks</span></div>
+            <div class="stat"><strong id="edgeCount">0</strong><span>dependencies</span></div>
+            <div class="stat"><strong id="sliceCount">0</strong><span>slices</span></div>
+          </div>
+
+          <div class="step-list" id="stepList"></div>
+
+          <div class="inspector" id="inspector">
+            <h3>Selected task</h3>
+            <p>Click a task to see why it matters. Hover any task to show one downstream chain through it.</p>
+            <div class="chip-row">
+              <span class="chip">no task selected</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="briefing">
+      <article class="panel prose">
+        <div class="panel-head">
+          <h2>One-page explanation</h2>
+        </div>
+        <div class="panel-body">
+          <div class="callout">
+            <p><strong>One-liner:</strong> In a finite schedule, compare a structure-selected spine with the duration-selected critical path: both may qualify as spines because their selection criteria—not mutually exclusive categories—are what differ.</p>
+          </div>
+          <div class="easy-hard" style="margin-top:12px">
+            <div class="rowline">
+              <b>Easy</b>
+              <span>A critical path is a duration story. It tells you which linked tasks currently drive the finish date.</span>
+            </div>
+            <div class="rowline">
+              <b>Hard</b>
+              <span>CPM chooses a longest weighted chain in a finite dependency poset. Several such chains may tie, and their identity can move when durations or packaging change.</span>
+            </div>
+            <div class="rowline">
+              <b>Easy</b>
+              <span>A slice is a set of tasks that do not precede one another. It is a precedence-independent layer; genuine simultaneous delivery still depends on resources and other constraints.</span>
+            </div>
+            <div class="rowline">
+              <b>Hard</b>
+              <span>An antichain is a set of pairwise incomparable elements. A spine is useful when paired with an antichain partition whose blocks it intersects.</span>
+            </div>
+            <div class="rowline">
+              <b>Easy</b>
+              <span>The practical shift is to track the selected chain and the slices it pierces. That makes the structural certificate auditable; any bottleneck claim still needs duration, resource, risk, and assurance evidence.</span>
+            </div>
+            <div class="rowline">
+              <b>Hard</b>
+              <span>The certificate is topological rather than narrative: each partition block has at least one spine task, so the chain is visible in every planned parallel layer.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel prose">
+        <div class="panel-head">
+          <h2>Fishbone structure</h2>
+        </div>
+        <div class="panel-body">
+          <div class="mini">
+            <svg id="fishbone" viewBox="0 0 560 210" role="img" aria-label="Mini sketch of a spine chain forming a trunk and antichain partition blocks forming ribs"></svg>
+          </div>
+          <p style="margin-top:10px">In Hollom's terminology, the fishbone is the chain together with an antichain partition whose every block meets that chain: the chain is the trunk and the partition blocks form the ribs. It is not itself a diagnosis of review loops. Repeating gates or review loops are a separate project-controls hypothesis to test against schedule and assurance evidence.</p>
+          <div class="chip-row">
+            <span class="chip spine">trunk = chain</span>
+            <span class="chip slice">ribs = antichain blocks</span>
+            <span class="chip warn">review-loop diagnosis is separate</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Slice certificate</h2>
+        </div>
+        <div class="panel-body">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Slice</th><th>Precedence-independent tasks</th><th>Structure-selected hit</th><th>Duration-selected hit</th><th>Project-control reading</th></tr>
+              </thead>
+              <tbody id="sliceTable"></tbody>
+            </table>
+          </div>
+          <p class="note">This demo uses one validated antichain partition of the toy WBS. Both displayed chains hit every block and therefore both are spines for this certificate. The definition does not require either chain to meet every arbitrary maximal antichain.</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Implementation note</h2>
+        </div>
+        <div class="panel-body prose">
+          <p><strong>Practical workflow:</strong> validate the dependency DAG, derive height layers or verify another proposed antichain partition, test the selected chain against reachability and every partition block, and calculate CPM separately. Revalidate after any topology or slice change; add resource constraints and buffers only in a separate CCPM analysis.</p>
+          <p><strong>Theory boundary:</strong> finite existence follows from height-layer/Mirsky reasoning: a maximum-cardinality chain has one element in each block of a minimum antichain layering. Hollom supplies the spine terminology and establishes important infinite-poset boundaries; this toy finite certificate does not implement his non-constructive infinite proof.</p>
+          <p><strong>Control interpretation:</strong> the certificate proves a structural relationship only. It can motivate a governance, bottleneck, or resource-protection hypothesis, but those decisions require duration, resource, risk, and assurance evidence.</p>
+          <p class="validation-status" id="validationStatus" role="status">Checking the live graph certificate…</p>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="application/json" id="spine-data">
+{
+  "meta": {
+    "title": "Hollom Spine Demo for Project Controls",
+    "sourceNote": "Built as a toy project-controls interpretation of the supplied Hollom and poset papers.",
+    "interpretiveNote": "This is an explanatory finite model with runtime certificate checks, not an implementation of Hollom's infinite-poset proof."
+  },
+  "oneLiner": "In a finite schedule, compare a structure-selected spine with the duration-selected critical path: both may qualify as spines because their selection criteria, not mutually exclusive categories, are what differ.",
+  "tasks": [
+    {"id":"A","label":"Scope brief","phase":"Frame","duration":4,"owner":"Sponsor","summary":"Defines the target outcome and project boundaries.","why":"If this drifts, every downstream package reinterprets the job.","x":95,"y":95},
+    {"id":"B","label":"Funding gate","phase":"Frame","duration":5,"owner":"Client","summary":"Confirms the funding envelope and affordability assumptions.","why":"A duration-critical branch often starts here because decisions wait on authority.","x":95,"y":265},
+    {"id":"C","label":"Site facts","phase":"Define","duration":6,"owner":"Technical lead","summary":"Converts uncertain site conditions into usable design facts.","why":"The structure-selected red chain uses this task and the slice certificate records that choice.","x":285,"y":95},
+    {"id":"D","label":"Consent route","phase":"Define","duration":7,"owner":"Planning lead","summary":"Defines the consent, stakeholder, and regulatory route.","why":"The duration-selected chain uses this task; in this model that amber chain also satisfies the spine certificate.","x":285,"y":265},
+    {"id":"E","label":"Reference design","phase":"Shape","duration":6,"owner":"Design manager","summary":"Creates the reference design around which packages can align.","why":"The red chain uses this task as its hit in the shape slice.","x":485,"y":95},
+    {"id":"F","label":"Specialist resource","phase":"Shape","duration":7,"owner":"Delivery lead","summary":"Secures scarce skills, supplier capacity, or equipment.","why":"The amber chain uses this task as its hit in the shape slice; its resource significance still needs evidence beyond the spine certificate.","x":485,"y":265},
+    {"id":"G","label":"Interface freeze","phase":"Integrate","duration":6,"owner":"Systems lead","summary":"Freezes interface assumptions before integration work proceeds.","why":"Both selected chains converge here, making it a candidate for governance attention to test against risk and assurance evidence.","x":690,"y":180},
+    {"id":"H","label":"System acceptance","phase":"Accept","duration":4,"owner":"Assurance lead","summary":"Confirms the integrated system meets the acceptance basis.","why":"A late acceptance miss converts hidden ambiguity into visible delay.","x":850,"y":180},
+    {"id":"I","label":"Handover","phase":"Close","duration":2,"owner":"Operator","summary":"Transfers the controlled baseline into operation.","why":"The end node makes the path consequence explicit.","x":1000,"y":180}
+  ],
+  "edges": [
+    ["A","C"], ["A","D"], ["B","D"], ["C","E"], ["D","F"],
+    ["E","G"], ["F","G"], ["G","H"], ["H","I"]
+  ],
+  "spine": ["A","C","E","G","H","I"],
+  "criticalPath": ["B","D","F","G","H","I"],
+  "slices": [
+    {"id":"S1","label":"Frame choices","nodes":["A","B"],"reading":"These starts are precedence-incomparable; the red and amber chains choose different hits."},
+    {"id":"S2","label":"Definition layer","nodes":["C","D"],"reading":"Facts and consent are precedence-incomparable; each selected chain uses one of them."},
+    {"id":"S3","label":"Shape layer","nodes":["E","F"],"reading":"Design and scarce resource are precedence-incomparable; each selected chain uses one of them."},
+    {"id":"S4","label":"Integration gate","nodes":["G"],"reading":"All branches meet at interface freeze."},
+    {"id":"S5","label":"Acceptance gate","nodes":["H"],"reading":"Acceptance is the visible governance checkpoint."},
+    {"id":"S6","label":"Closeout","nodes":["I"],"reading":"Handover closes the chain."}
+  ],
+  "churnTask": {
+    "task": {"id":"X","label":"Late review loop","phase":"Shape","duration":5,"owner":"Assurance forum","summary":"A late extra review task added after re-baselining.","why":"Useful as a small demonstration of schedule churn around a slice.","x":485,"y":382},
+    "edges": [["D","X"], ["X","G"]],
+    "sliceIndex": 2
+  }
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  const data = JSON.parse(document.getElementById("spine-data").textContent);
+  const graph = document.getElementById("graph");
+  const fishbone = document.getElementById("fishbone");
+  const toast = document.getElementById("toast");
+
+  const state = {
+    showCritical: true,
+    showSpine: true,
+    showSlices: true,
+    churn: false,
+    sliceIndex: 0,
+    selected: null,
+    hoverChain: [],
+    storyIndex: 0,
+    timer: null
+  };
+
+  const story = [
+    {
+      title: "1. CPM finds a duration chain.",
+      copy: "The amber line is the current duration-critical path. It is useful, but it is a weighted-path result and can move when durations, resources, or packaging change."
+    },
+    {
+      title: "2. A slice is precedence-independent structure.",
+      copy: "The blue layer is an antichain slice: its tasks are pairwise incomparable in precedence. Resources, calendars, access, and other constraints may still prevent simultaneous execution."
+    },
+    {
+      title: "3. The spine has a slice certificate.",
+      copy: "The red chain was selected from the dependency structure. Its certificate is explicit: every chosen slice contains one red task."
+    },
+    {
+      title: "4. Selection criteria—not categories—differ.",
+      copy: "The amber chain was selected by duration, but it also hits every slice and is therefore another spine here. The useful comparison is why each chain was selected and which control question it answers."
+    },
+    {
+      title: "5. Revalidate, then add control evidence.",
+      copy: "A spine certificate is precedence-first, not a resource decision. Revalidate it after topology or slice changes, then combine it with duration, resource, risk, and assurance evidence before assigning buffers or protected resources."
+    }
+  ];
+
+  function tasks() {
+    const base = data.tasks.map(t => ({...t}));
+    if (state.churn) base.push({...data.churnTask.task});
+    return base;
+  }
+
+  function edges() {
+    const base = data.edges.map(e => e.slice());
+    if (state.churn) data.churnTask.edges.forEach(e => base.push(e.slice()));
+    return base;
+  }
+
+  function slices() {
+    const base = data.slices.map(s => ({...s, nodes: s.nodes.slice()}));
+    if (state.churn) {
+      base[data.churnTask.sliceIndex].nodes.push(data.churnTask.task.id);
+      base[data.churnTask.sliceIndex].label = "Shape layer plus churn";
+      base[data.churnTask.sliceIndex].reading = "The late review task joins the same precedence-independent layer; live revalidation confirms that both displayed chains still hit it through E and F.";
+    }
+    return base;
+  }
+
+  function byId() {
+    return Object.fromEntries(tasks().map(t => [t.id, t]));
+  }
+
+  function edgeKey(a, b) { return a + "->" + b; }
+
+  function pathEdges(path) {
+    const out = new Set();
+    for (let i = 0; i < path.length - 1; i++) out.add(edgeKey(path[i], path[i + 1]));
+    return out;
+  }
+
+  function validateModel() {
+    const taskList = tasks();
+    const edgeList = edges();
+    const currentSlices = slices();
+    const errors = [];
+    const idList = taskList.map(task => task.id);
+    const ids = new Set(idList);
+    const uniqueIds = Array.from(ids);
+
+    if (ids.size !== idList.length) errors.push("task ids must be unique");
+
+    const durations = new Map();
+    taskList.forEach(task => {
+      if (!Number.isFinite(task.duration) || task.duration < 0) {
+        errors.push("task " + task.id + " needs a non-negative numeric duration");
+      }
+      durations.set(task.id, Number(task.duration) || 0);
+    });
+
+    const outgoing = new Map(uniqueIds.map(id => [id, []]));
+    const incoming = new Map(uniqueIds.map(id => [id, []]));
+    const edgeSet = new Set();
+    edgeList.forEach(([from, to]) => {
+      const key = edgeKey(from, to);
+      if (edgeSet.has(key)) errors.push("duplicate dependency " + key);
+      edgeSet.add(key);
+      if (!ids.has(from) || !ids.has(to)) {
+        errors.push("dependency " + key + " has an unknown endpoint");
+        return;
+      }
+      outgoing.get(from).push(to);
+      incoming.get(to).push(from);
+    });
+
+    const indegree = new Map(uniqueIds.map(id => [id, incoming.get(id).length]));
+    const queue = uniqueIds.filter(id => indegree.get(id) === 0);
+    const order = [];
+    while (queue.length) {
+      const id = queue.shift();
+      order.push(id);
+      outgoing.get(id).forEach(next => {
+        indegree.set(next, indegree.get(next) - 1);
+        if (indegree.get(next) === 0) queue.push(next);
+      });
+    }
+    const isDag = order.length === uniqueIds.length;
+    if (!isDag) errors.push("dependency graph must be acyclic");
+
+    const reachable = new Map(uniqueIds.map(id => [id, new Set()]));
+    if (isDag) {
+      for (let i = order.length - 1; i >= 0; i -= 1) {
+        const id = order[i];
+        outgoing.get(id).forEach(next => {
+          reachable.get(id).add(next);
+          reachable.get(next).forEach(descendant => reachable.get(id).add(descendant));
+        });
+      }
+    }
+
+    function checkChain(path, label) {
+      if (new Set(path).size !== path.length) errors.push(label + " repeats a task");
+      path.forEach(id => {
+        if (!ids.has(id)) errors.push(label + " contains unknown task " + id);
+      });
+      if (!isDag || path.some(id => !ids.has(id))) return;
+      for (let i = 0; i < path.length; i += 1) {
+        for (let j = i + 1; j < path.length; j += 1) {
+          if (!reachable.get(path[i]).has(path[j])) {
+            errors.push(label + " is not ordered at " + path[i] + " -> " + path[j]);
+          }
+        }
+      }
+    }
+
+    checkChain(data.spine, "structure-selected chain");
+    checkChain(data.criticalPath, "duration-selected path");
+    for (let i = 0; i < data.criticalPath.length - 1; i += 1) {
+      const key = edgeKey(data.criticalPath[i], data.criticalPath[i + 1]);
+      if (!edgeSet.has(key)) errors.push("duration-selected path skips direct dependency " + key);
+    }
+
+    const sliceIds = new Set();
+    const coverage = new Map(uniqueIds.map(id => [id, 0]));
+    currentSlices.forEach(slice => {
+      if (sliceIds.has(slice.id)) errors.push("slice ids must be unique");
+      sliceIds.add(slice.id);
+      if (!slice.nodes.length) errors.push("slice " + slice.id + " is empty");
+      slice.nodes.forEach(id => {
+        if (!ids.has(id)) {
+          errors.push("slice " + slice.id + " contains unknown task " + id);
+        } else {
+          coverage.set(id, coverage.get(id) + 1);
+        }
+      });
+      if (isDag) {
+        for (let i = 0; i < slice.nodes.length; i += 1) {
+          for (let j = i + 1; j < slice.nodes.length; j += 1) {
+            const a = slice.nodes[i];
+            const b = slice.nodes[j];
+            if (ids.has(a) && ids.has(b) && (reachable.get(a).has(b) || reachable.get(b).has(a))) {
+              errors.push("slice " + slice.id + " is not an antichain: " + a + " and " + b + " are comparable");
+            }
+          }
+        }
+      }
+      if (!slice.nodes.some(id => data.spine.includes(id))) {
+        errors.push("structure-selected chain misses slice " + slice.id);
+      }
+      if (!slice.nodes.some(id => data.criticalPath.includes(id))) {
+        errors.push("duration-selected path misses slice " + slice.id);
+      }
+    });
+    coverage.forEach((count, id) => {
+      if (count !== 1) errors.push("task " + id + " must occur in exactly one slice");
+    });
+
+    const cardinality = new Map();
+    const weighted = new Map();
+    order.forEach(id => {
+      const predecessors = incoming.get(id);
+      const priorCardinality = predecessors.length ? Math.max(...predecessors.map(p => cardinality.get(p))) : 0;
+      const priorWeight = predecessors.length ? Math.max(...predecessors.map(p => weighted.get(p))) : 0;
+      cardinality.set(id, priorCardinality + 1);
+      weighted.set(id, priorWeight + durations.get(id));
+    });
+    const height = isDag && order.length ? Math.max(...order.map(id => cardinality.get(id))) : 0;
+    const cpmDuration = isDag && order.length ? Math.max(...order.map(id => weighted.get(id))) : 0;
+    const declaredCpmDuration = data.criticalPath.reduce((total, id) => total + (durations.get(id) || 0), 0);
+    const structureDuration = data.spine.reduce((total, id) => total + (durations.get(id) || 0), 0);
+
+    if (isDag && currentSlices.length !== height) {
+      errors.push("the displayed partition has " + currentSlices.length + " blocks but graph height is " + height);
+    }
+    if (isDag && declaredCpmDuration !== cpmDuration) {
+      errors.push("declared CPM duration " + declaredCpmDuration + "w does not equal computed optimum " + cpmDuration + "w");
+    }
+
+    return {
+      ok: errors.length === 0,
+      errors,
+      height,
+      cpmDuration,
+      structureDuration,
+      taskCount: taskList.length,
+      edgeCount: edgeList.length,
+      sliceCount: currentSlices.length
+    };
+  }
+
+  function updateValidation(result) {
+    const panel = document.getElementById("validationStatus");
+    panel.classList.toggle("bad", !result.ok);
+    if (result.ok) {
+      panel.textContent = "Live certificate passed" + (state.churn ? " with the churn task" : "") + ": DAG; height " + result.height + "; " + result.sliceCount + " antichain blocks cover every task once; both selected chains hit every block; and the " + result.cpmDuration + "w CPM optimum is confirmed.";
+    } else {
+      panel.textContent = "Live certificate failed: " + result.errors.join("; ") + ".";
+    }
+  }
+
+  function longestDownstream(start) {
+    const taskMap = byId();
+    const out = new Map(tasks().map(t => [t.id, []]));
+    edges().forEach(([a, b]) => out.get(a).push(b));
+    const memo = new Map();
+
+    function walk(id) {
+      if (memo.has(id)) return memo.get(id);
+      const next = out.get(id) || [];
+      if (!next.length) {
+        const result = {path: [id], score: taskMap[id].duration || 0};
+        memo.set(id, result);
+        return result;
+      }
+      let best = null;
+      next.forEach(n => {
+        const candidate = walk(n);
+        if (!best || candidate.score > best.score) best = candidate;
+      });
+      const result = {path: [id].concat(best.path), score: (taskMap[id].duration || 0) + best.score};
+      memo.set(id, result);
+      return result;
+    }
+
+    return walk(start).path;
+  }
+
+  function makeSvg(name, attrs, parent) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.entries(attrs || {}).forEach(([k, v]) => el.setAttribute(k, v));
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+
+  function wrapText(textEl, text, width) {
+    const words = text.split(/\s+/);
+    let line = [];
+    let lineNumber = 0;
+    const lineHeight = 15;
+    const x = textEl.getAttribute("x");
+    const y = Number(textEl.getAttribute("y"));
+    let tspan = makeSvg("tspan", {x, y}, textEl);
+
+    words.forEach(word => {
+      line.push(word);
+      tspan.textContent = line.join(" ");
+      if (tspan.getComputedTextLength && tspan.getComputedTextLength() > width && line.length > 1) {
+        line.pop();
+        tspan.textContent = line.join(" ");
+        line = [word];
+        lineNumber += 1;
+        tspan = makeSvg("tspan", {x, y: y + lineNumber * lineHeight}, textEl);
+        tspan.textContent = word;
+      }
+    });
+  }
+
+  function renderGraph() {
+    graph.innerHTML = "";
+    updateValidation(validateModel());
+    const defs = makeSvg("defs", {}, graph);
+    [
+      ["arrow", "#7b8794"],
+      ["arrow-spine", getCss("--spine")],
+      ["arrow-critical", getCss("--critical")],
+      ["arrow-chain", getCss("--chain")]
+    ].forEach(([id, color]) => {
+      const marker = makeSvg("marker", {id, viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 8, markerHeight: 8, orient: "auto"}, defs);
+      makeSvg("path", {d: "M0 0 L8 4 L0 8 Z", fill: color}, marker);
+    });
+
+    const taskList = tasks();
+    const taskMap = byId();
+    const currentSlices = slices();
+    const currentSlice = currentSlices[state.sliceIndex];
+    const spineNodes = new Set(data.spine);
+    const criticalNodes = new Set(data.criticalPath);
+    const hoverNodes = new Set(state.hoverChain);
+    const sliceNodes = new Set(currentSlice.nodes);
+    const spineEdges = pathEdges(data.spine);
+    const criticalEdges = pathEdges(data.criticalPath);
+    const hoverEdges = pathEdges(state.hoverChain);
+
+    if (state.showSlices) {
+      const sliceTasks = currentSlice.nodes.map(id => taskMap[id]).filter(Boolean);
+      if (sliceTasks.length) {
+        const minX = Math.min(...sliceTasks.map(t => t.x)) - 72;
+        const maxX = Math.max(...sliceTasks.map(t => t.x)) + 72;
+        const minY = Math.min(...sliceTasks.map(t => t.y)) - 46;
+        const maxY = Math.max(...sliceTasks.map(t => t.y)) + 56;
+        makeSvg("rect", {
+          class: "slice-band",
+          x: Math.max(10, minX),
+          y: Math.max(10, minY),
+          width: Math.min(1060, maxX) - Math.max(10, minX),
+          height: Math.min(430, maxY) - Math.max(10, minY),
+          rx: 14,
+          ry: 14
+        }, graph);
+      }
+    }
+
+    edges().forEach(([a, b]) => {
+      const s = taskMap[a];
+      const t = taskMap[b];
+      const key = edgeKey(a, b);
+      if (!s || !t) return;
+      let klass = "edge";
+      if (state.showSpine && spineEdges.has(key)) klass += " spine-edge";
+      if (state.showCritical && criticalEdges.has(key)) klass += " critical-edge";
+      if (hoverEdges.has(key)) klass += " hover-edge";
+      makeSvg("line", {
+        class: klass,
+        x1: s.x + 63,
+        y1: s.y,
+        x2: t.x - 63,
+        y2: t.y
+      }, graph);
+    });
+
+    taskList.forEach(task => {
+      const g = makeSvg("g", {class: nodeClass(task.id), tabindex: 0, role: "button", "aria-label": task.label}, graph);
+      g.dataset.node = task.id;
+      makeSvg("rect", {x: task.x - 68, y: task.y - 35, width: 136, height: 70}, g);
+      const label = makeSvg("text", {x: task.x, y: task.y - 10, "text-anchor": "middle"}, g);
+      wrapText(label, task.label, 112);
+      const duration = makeSvg("text", {class: "duration", x: task.x, y: task.y + 24, "text-anchor": "middle"}, g);
+      duration.textContent = task.duration + "w | " + task.owner;
+
+      g.addEventListener("mouseenter", () => {
+        state.hoverChain = longestDownstream(task.id);
+        renderGraph();
+      });
+      g.addEventListener("mouseleave", () => {
+        state.hoverChain = [];
+        renderGraph();
+      });
+      g.addEventListener("click", () => {
+        state.selected = task.id;
+        updateInspector();
+        renderGraph();
+      });
+      g.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          state.selected = task.id;
+          updateInspector();
+          renderGraph();
+        }
+      });
+    });
+
+    updateStats();
+    updateSliceUi();
+    updateSliceTable();
+  }
+
+  function nodeClass(id) {
+    const currentSlice = slices()[state.sliceIndex];
+    let klass = "node";
+    if (state.showSlices && currentSlice.nodes.includes(id)) klass += " slice";
+    if (state.showSpine && data.spine.includes(id)) klass += " spine";
+    if (state.showCritical && data.criticalPath.includes(id)) klass += " critical";
+    if (state.hoverChain.includes(id)) klass += " hover";
+    if (state.selected === id) klass += " selected";
+    return klass;
+  }
+
+  function getCss(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function updateStats() {
+    document.getElementById("taskCount").textContent = tasks().length;
+    document.getElementById("edgeCount").textContent = edges().length;
+    document.getElementById("sliceCount").textContent = slices().length;
+  }
+
+  function updateSliceUi() {
+    const current = slices()[state.sliceIndex];
+    document.getElementById("sliceLabel").textContent = (state.sliceIndex + 1) + "/" + slices().length + ": " + current.label + " - " + current.nodes.join(", ");
+    document.getElementById("prevSlice").disabled = state.sliceIndex === 0;
+    document.getElementById("nextSlice").disabled = state.sliceIndex === slices().length - 1;
+  }
+
+  function updateSliceTable() {
+    const body = document.getElementById("sliceTable");
+    body.innerHTML = "";
+    const taskMap = byId();
+    slices().forEach((slice, index) => {
+      const hit = slice.nodes.find(n => data.spine.includes(n));
+      const criticalHit = slice.nodes.find(n => data.criticalPath.includes(n));
+      const structureCell = hit ? "<span class=\"chip spine\">" + escapeHtml(taskMap[hit].label) + "</span>" : "<span class=\"chip warn\">missing</span>";
+      const criticalCell = criticalHit ? "<span class=\"chip critical\">" + escapeHtml(taskMap[criticalHit].label) + "</span>" : "<span class=\"chip warn\">missing</span>";
+      const tr = document.createElement("tr");
+      tr.innerHTML = [
+        "<td><strong>" + (index + 1) + ". " + escapeHtml(slice.label) + "</strong></td>",
+        "<td>" + slice.nodes.map(id => escapeHtml(taskMap[id].label)).join("<br>") + "</td>",
+        "<td>" + structureCell + "</td>",
+        "<td>" + criticalCell + "</td>",
+        "<td>" + escapeHtml(slice.reading) + "</td>"
+      ].join("");
+      body.appendChild(tr);
+    });
+  }
+
+  function updateStory() {
+    document.getElementById("storyTitle").textContent = story[state.storyIndex].title;
+    document.getElementById("storyCopy").textContent = story[state.storyIndex].copy;
+
+    const list = document.getElementById("stepList");
+    list.innerHTML = "";
+    story.forEach((item, index) => {
+      const div = document.createElement("div");
+      div.className = "step" + (index === state.storyIndex ? " active" : "");
+      div.innerHTML = "<div class=\"step-title\">" + escapeHtml(item.title) + "</div><p>" + escapeHtml(item.copy) + "</p>";
+      list.appendChild(div);
+    });
+  }
+
+  function updateInspector() {
+    const panel = document.getElementById("inspector");
+    const taskMap = byId();
+    const task = state.selected ? taskMap[state.selected] : null;
+    if (!task) {
+      panel.innerHTML = "<h3>Selected task</h3><p>Click a task to see why it matters. Hover any task to show one downstream chain through it.</p><div class=\"chip-row\"><span class=\"chip\">no task selected</span></div>";
+      return;
+    }
+    const chips = [];
+    if (data.spine.includes(task.id)) chips.push("<span class=\"chip spine\">structure-selected spine</span>");
+    if (data.criticalPath.includes(task.id)) chips.push("<span class=\"chip critical\">duration-selected path (also a spine)</span>");
+    if (slices()[state.sliceIndex].nodes.includes(task.id)) chips.push("<span class=\"chip slice\">current slice</span>");
+    chips.push("<span class=\"chip\">" + escapeHtml(task.phase) + "</span>");
+    panel.innerHTML = [
+      "<h3>" + escapeHtml(task.label) + "</h3>",
+      "<p>" + escapeHtml(task.summary) + "</p>",
+      "<p><strong>Project-control reading:</strong> " + escapeHtml(task.why) + "</p>",
+      "<div class=\"chip-row\">" + chips.join("") + "</div>"
+    ].join("");
+  }
+
+  function renderFishbone() {
+    fishbone.innerHTML = "";
+    const defs = makeSvg("defs", {}, fishbone);
+    const marker = makeSvg("marker", {id: "mini-arrow", viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 8, markerHeight: 8, orient: "auto"}, defs);
+    makeSvg("path", {d: "M0 0 L8 4 L0 8 Z", fill: getCss("--spine")}, marker);
+
+    const trunk = [
+      {id: "A", x: 50, slice: "S1"},
+      {id: "C", x: 142, slice: "S2"},
+      {id: "E", x: 234, slice: "S3"},
+      {id: "G", x: 326, slice: "S4"},
+      {id: "H", x: 418, slice: "S5"},
+      {id: "I", x: 510, slice: "S6"}
+    ];
+    trunk.slice(0, -1).forEach((node, index) => {
+      makeSvg("line", {x1: node.x + 15, y1: 105, x2: trunk[index + 1].x - 17, y2: 105, stroke: getCss("--spine"), "stroke-width": 4, "marker-end": "url(#mini-arrow)"}, fishbone);
+    });
+
+    const ribs = [
+      {id: "B", x: 50, y: 166, slice: "S1"},
+      {id: "D", x: 142, y: 46, slice: "S2"},
+      {id: "F", x: 234, y: 166, slice: "S3"}
+    ];
+    ribs.forEach(rib => {
+      makeSvg("line", {x1: rib.x, y1: 105, x2: rib.x, y2: rib.y, stroke: getCss("--slice"), "stroke-width": 3, "stroke-dasharray": "5 4"}, fishbone);
+      makeSvg("circle", {cx: rib.x, cy: rib.y, r: 14, fill: "#fff", stroke: getCss("--slice"), "stroke-width": 3}, fishbone);
+      const id = makeSvg("text", {x: rib.x, y: rib.y + 4, "text-anchor": "middle", "font-size": 12, "font-weight": 800, fill: getCss("--slice")}, fishbone);
+      id.textContent = rib.id;
+      const slice = makeSvg("text", {x: rib.x + 21, y: rib.y + 4, "font-size": 11, fill: "#5d6875"}, fishbone);
+      slice.textContent = rib.slice;
+    });
+
+    trunk.forEach(node => {
+      makeSvg("circle", {cx: node.x, cy: 105, r: 14, fill: "#fff", stroke: getCss("--spine"), "stroke-width": 3}, fishbone);
+      const id = makeSvg("text", {x: node.x, y: 109, "text-anchor": "middle", "font-size": 12, "font-weight": 800, fill: getCss("--spine")}, fishbone);
+      id.textContent = node.id;
+      if (["S4", "S5", "S6"].includes(node.slice)) {
+        const slice = makeSvg("text", {x: node.x, y: 135, "text-anchor": "middle", "font-size": 11, fill: "#5d6875"}, fishbone);
+        slice.textContent = node.slice;
+      }
+    });
+
+    const title = makeSvg("text", {x: 280, y: 22, "text-anchor": "middle", "font-size": 14, "font-weight": 800, fill: "#16202a"}, fishbone);
+    title.textContent = "Chain trunk plus antichain-partition ribs";
+    const note = makeSvg("text", {x: 280, y: 202, "text-anchor": "middle", "font-size": 11, fill: "#5d6875"}, fishbone);
+    note.textContent = "Dashed ribs show slice membership, not dependencies.";
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add("show");
+    window.setTimeout(() => toast.classList.remove("show"), 1700);
+  }
+
+  function setButtonStates() {
+    document.getElementById("criticalBtn").classList.toggle("active", state.showCritical);
+    document.getElementById("spineBtn").classList.toggle("active", state.showSpine);
+    document.getElementById("sliceBtn").classList.toggle("active", state.showSlices);
+    document.getElementById("churnBtn").textContent = state.churn ? "Remove churn task" : "Add churn task";
+    document.getElementById("autoSlice").textContent = state.timer ? "Stop sweep" : "Auto sweep";
+  }
+
+  function downloadJson() {
+    const receipt = {
+      exportedAt: new Date().toISOString(),
+      currentSlice: slices()[state.sliceIndex],
+      showChurnTask: state.churn,
+      tasks: tasks(),
+      edges: edges(),
+      spine: data.spine,
+      criticalPath: data.criticalPath,
+      slices: slices(),
+      oneLiner: data.oneLiner,
+      validation: validateModel()
+    };
+    const blob = new Blob([JSON.stringify(receipt, null, 2)], {type: "application/json"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "hollom_spine_demo_snapshot.json";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function copyOneLiner() {
+    const text = data.oneLiner;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast("One-liner copied"));
+    } else {
+      showToast(text);
+    }
+  }
+
+  function stopTimer() {
+    if (state.timer) {
+      clearInterval(state.timer);
+      state.timer = null;
+      setButtonStates();
+    }
+  }
+
+  document.getElementById("criticalBtn").addEventListener("click", () => {
+    state.showCritical = !state.showCritical;
+    setButtonStates();
+    renderGraph();
+  });
+
+  document.getElementById("spineBtn").addEventListener("click", () => {
+    state.showSpine = !state.showSpine;
+    setButtonStates();
+    renderGraph();
+  });
+
+  document.getElementById("sliceBtn").addEventListener("click", () => {
+    state.showSlices = !state.showSlices;
+    setButtonStates();
+    renderGraph();
+  });
+
+  document.getElementById("prevSlice").addEventListener("click", () => {
+    stopTimer();
+    state.sliceIndex = Math.max(0, state.sliceIndex - 1);
+    renderGraph();
+  });
+
+  document.getElementById("nextSlice").addEventListener("click", () => {
+    stopTimer();
+    state.sliceIndex = Math.min(slices().length - 1, state.sliceIndex + 1);
+    renderGraph();
+  });
+
+  document.getElementById("autoSlice").addEventListener("click", () => {
+    if (state.timer) {
+      stopTimer();
+      return;
+    }
+    state.timer = setInterval(() => {
+      state.sliceIndex = (state.sliceIndex + 1) % slices().length;
+      renderGraph();
+    }, 1100);
+    setButtonStates();
+  });
+
+  document.getElementById("churnBtn").addEventListener("click", () => {
+    stopTimer();
+    state.churn = !state.churn;
+    if (state.sliceIndex >= slices().length) state.sliceIndex = 0;
+    setButtonStates();
+    updateInspector();
+    renderGraph();
+    showToast(state.churn ? "Churn task added" : "Churn task removed");
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    stopTimer();
+    state.showCritical = true;
+    state.showSpine = true;
+    state.showSlices = true;
+    state.churn = false;
+    state.sliceIndex = 0;
+    state.selected = null;
+    state.hoverChain = [];
+    state.storyIndex = 0;
+    setButtonStates();
+    updateStory();
+    updateInspector();
+    renderGraph();
+  });
+
+  document.getElementById("nextStory").addEventListener("click", () => {
+    state.storyIndex = (state.storyIndex + 1) % story.length;
+    updateStory();
+  });
+
+  document.getElementById("copyLineBtn").addEventListener("click", copyOneLiner);
+  document.getElementById("downloadBtn").addEventListener("click", downloadJson);
+
+  setButtonStates();
+  updateStory();
+  updateInspector();
+  renderFishbone();
+  renderGraph();
+})();
+</script>
+</body>
+</html>

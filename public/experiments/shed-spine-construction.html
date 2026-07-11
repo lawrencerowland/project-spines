@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Spine Visualization &amp; Algorithm</title>
+    <script src="../vendor/d3-7.8.5.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .visualization-section {
+            flex: 1;
+        }
+        
+        .algorithm-section {
+            width: 400px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .algorithm-section h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+        
+        button.active {
+            background: #e74c3c;
+        }
+        
+        .info-button {
+            background: #95a5a6;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        
+        .info-button:hover {
+            background: #7f8c8d;
+        }
+        
+        .algo-button {
+            background: #27ae60;
+        }
+        
+        .algo-button:hover {
+            background: #229954;
+        }
+        
+        .algo-button.active {
+            background: #e67e22;
+        }
+        
+        #graph-container {
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            background: #fafafa;
+            overflow-x: auto;
+            min-height: 500px;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node rect {
+            fill: #3498db;
+            stroke: #2980b9;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover rect {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        .node.antichain-1 rect { fill: #f39c12; stroke: #d68910; }
+        .node.antichain-2 rect { fill: #27ae60; stroke: #229954; }
+        .node.antichain-3 rect { fill: #8e44ad; stroke: #7d3c98; }
+        .node.antichain-4 rect { fill: #16a085; stroke: #138d75; }
+        .node.antichain-5 rect { fill: #d35400; stroke: #ba4a00; }
+        .node.antichain-6 rect { fill: #2c7fb8; stroke: #1f5f8a; }
+        .node.antichain-7 rect { fill: #6c5ce7; stroke: #5141bf; }
+        .node.antichain-8 rect { fill: #596275; stroke: #3f4654; }
+        
+        .node.spine rect,
+        .node.spine.antichain-1 rect,
+        .node.spine.antichain-2 rect,
+        .node.spine.antichain-3 rect,
+        .node.spine.antichain-4 rect,
+        .node.spine.antichain-5 rect,
+        .node.spine.antichain-6 rect,
+        .node.spine.antichain-7 rect,
+        .node.spine.antichain-8 rect {
+            fill: #e74c3c !important;
+            stroke: #c0392b !important;
+            stroke-width: 3 !important;
+        }
+        
+        .node.highlight rect {
+            stroke: #f39c12 !important;
+            stroke-width: 4 !important;
+            filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.6));
+        }
+        
+        .node text {
+            fill: white;
+            font-size: 11px;
+            font-weight: 500;
+            pointer-events: none;
+        }
+        
+        .edge {
+            fill: none;
+            stroke: #7f8c8d;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+        
+        .edge.highlight {
+            stroke: #f39c12;
+            stroke-width: 3;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+        
+        .info-panel {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .info-panel.active {
+            display: block;
+        }
+        
+        .info-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .antichain-group {
+            fill-opacity: 0.1;
+            stroke-width: 3;
+            stroke-dasharray: 5,5;
+        }
+        
+        .algorithm-step {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+            display: none;
+        }
+        
+        .algorithm-step.active {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+        
+        .algorithm-step.completed {
+            border-left-color: #27ae60;
+            opacity: 0.8;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .step-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .step-description {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .code-snippet {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-top: 10px;
+            color: #2c3e50;
+        }
+
+        .validation-summary {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .validation-summary.ok {
+            color: #17633a;
+            background: #eaf7ef;
+            border: 1px solid #b8dec6;
+        }
+
+        .validation-summary.bad {
+            color: #8b1e1e;
+            background: #fdeeee;
+            border: 1px solid #efbcbc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mountain Refuge Shed Project: Spine Analysis</h1>
+        <p class="subtitle">A finite DAG construction with three verified minimum antichain partitions</p>
+        
+        <div class="main-content">
+            <div class="visualization-section">
+                <div class="controls">
+                    <button onclick="showPartition(1, event)" class="partition-btn">Earliest Feasible Layers</button>
+                    <button onclick="showPartition(2, event)" class="partition-btn">Middle-Shifted Layers</button>
+                    <button onclick="showPartition(3, event)" class="partition-btn">Late Feasible Layers</button>
+                    <button onclick="toggleSpine()" id="spine-btn">Show Spine</button>
+                    <button onclick="toggleInfo('concept')" class="info-button">What's a Spine?</button>
+                    <button onclick="toggleInfo('antichain')" class="info-button">What's an Antichain?</button>
+                    <button onclick="toggleInfo('practical')" class="info-button">Why This Matters</button>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-box" style="background: #e74c3c;"></div>
+                        <span>Selected spine (one maximum-cardinality chain)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box" style="background: #3498db;"></div>
+                        <span>Regular Task</span>
+                    </div>
+                </div>
+                
+                <div id="graph-container">
+                    <svg id="graph" width="1200" height="520"></svg>
+                </div>
+            </div>
+            
+            <div class="algorithm-section">
+                <h3>Finite Spine Construction</h3>
+                <div class="controls">
+                    <button onclick="runAlgorithm()" class="algo-button" id="run-algo-btn">Run Construction</button>
+                    <button onclick="resetAlgorithm()" class="algo-button">Reset</button>
+                </div>
+                
+                <div id="algorithm-steps">
+                    <div class="algorithm-step" id="step-1">
+                        <div class="step-title">Step 1: Validate the DAG</div>
+                        <div class="step-description">
+                            Check task identifiers, reject cycles, and compute a topological order.
+                            <div class="code-snippet">
+                                order = topologicalSort(tasks, dependencies)<br>
+                                require order.length == tasks.length
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="algorithm-step" id="step-2">
+                        <div class="step-title">Step 2: Compute Reachability and Height</div>
+                        <div class="step-description">
+                            Use transitive reachability for comparability checks and longest-predecessor ranks for height.
+                            <div class="code-snippet">
+                                rank(v) = 1 + max(rank(u))<br>
+                                height = max(rank)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="algorithm-step" id="step-3">
+                        <div class="step-title">Step 3: Recover a Maximum Chain</div>
+                        <div class="step-description">
+                            Follow the stored predecessor pointers from a height-eight endpoint.
+                            <div class="code-snippet">
+                                spine = unwind(heightParent)<br>
+                                require spine.length == height
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="algorithm-step" id="step-4">
+                        <div class="step-title">Step 4: Validate the Partitions</div>
+                        <div class="step-description">
+                            Check coverage, transitive incomparability, minimum size, and one spine task per part.
+                            <div class="code-snippet">
+                                require coversEachTaskOnce(partition)<br>
+                                require everyPartIsAntichain(partition)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="algorithm-step" id="step-5">
+                        <div class="step-title">Step 5: Compare Selection Rules</div>
+                        <div class="step-description">
+                            Height selects one maximum-cardinality chain; CPM selects a maximum-duration path. The criteria differ, but a path can satisfy both. In this example the CPM path is another maximum-cardinality chain and is also a spine.
+                            <div class="code-snippet">
+                                <span id="spine-result"></span><br>
+                                <span id="critical-result"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="validation-summary" id="validation-summary" role="status"></div>
+        
+        <div id="info-concept" class="info-panel">
+            <h3>What's a Project Spine?</h3>
+            <p>A <strong>spine</strong> is a chain paired with an antichain partition whose every part it meets. This prototype selects one maximum-cardinality chain for the finite DAG and verifies three compatible minimum partitions.</p>
+            <p>The property is existential, not universal: arbitrary antichains or arbitrarily refined partitions need not meet the chosen chain.</p>
+            <p>A chain may qualify under more than one selection rule. Here the CPM path is also maximum-cardinality and meets every displayed partition, so it is a second spine rather than a non-spine comparator.</p>
+        </div>
+        
+        <div id="info-antichain" class="info-panel">
+            <h3>What's an Antichain?</h3>
+            <p>An <strong>antichain</strong> is a set of pairwise precedence-incomparable tasks. Logical parallelism does not guarantee simultaneous execution once resources, calendars or access constraints are considered.</p>
+            <p>The displayed layerings are deliberately compatible, programmatically verified minimum partitions—not arbitrary management groupings.</p>
+        </div>
+        
+        <div id="info-practical" class="info-panel">
+            <h3>Why This Matters for Project Management</h3>
+            <ul>
+                <li><strong>Topology check:</strong> a height-eight chain certifies one task in every verified precedence layer.</li>
+                <li><strong>CPM comparison:</strong> the 17-day height-selected spine runs through G; the 19-day CPM-selected path runs through H and is also a spine.</li>
+                <li><strong>Assurance:</strong> every displayed group is checked against transitive reachability.</li>
+                <li><strong>Use:</strong> compare spine, critical, resource-constrained and high-risk tasks before deciding where to intervene.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <script>
+        // Task data structure with improved layout
+        const tasks = {
+            A: { name: "Site Survey", x: 40, y: 220, duration: 2 },
+            B: { name: "Permits", x: 180, y: 120, duration: 5 },
+            C: { name: "Materials List", x: 180, y: 340, duration: 1 },
+            D: { name: "Helicopter Booking", x: 320, y: 60, duration: 1 },
+            E: { name: "Foundation Prep", x: 320, y: 220, duration: 3 },
+            F: { name: "Materials Delivery", x: 460, y: 220, duration: 1 },
+            G: { name: "Foundation Pour", x: 600, y: 60, duration: 2 },
+            H: { name: "Frame Assembly", x: 600, y: 220, duration: 4 },
+            I: { name: "Wall Installation", x: 740, y: 140, duration: 3 },
+            J: { name: "Roof Structure", x: 600, y: 400, duration: 3 },
+            K: { name: "Safety Rails", x: 740, y: 360, duration: 2 },
+            L: { name: "Emergency Kit", x: 320, y: 400, duration: 1 },
+            M: { name: "Weatherproofing", x: 880, y: 220, duration: 2 },
+            N: { name: "Final Inspection", x: 1020, y: 220, duration: 1 }
+        };
+        
+        // Dependencies (edges)
+        const dependencies = [
+            ['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'E'], ['C', 'L'],
+            ['D', 'F'], ['E', 'F'], ['F', 'G'], ['F', 'H'], ['F', 'J'],
+            ['G', 'I'], ['H', 'I'], ['J', 'K'], ['J', 'M'], ['L', 'K'],
+            ['I', 'M'], ['K', 'N'], ['M', 'N']
+        ];
+        
+        // Three deliberately compatible minimum antichain partitions.
+        const partitions = {
+            1: {
+                name: "Earliest Feasible Layers",
+                antichains: [
+                    ['A'],
+                    ['B', 'C'],
+                    ['D', 'E', 'L'],
+                    ['F'],
+                    ['G', 'H', 'J'],
+                    ['I', 'K'],
+                    ['M'],
+                    ['N']
+                ]
+            },
+            2: {
+                name: "Middle-Shifted Layers",
+                antichains: [
+                    ['A'],
+                    ['B', 'C'],
+                    ['D', 'E'],
+                    ['F', 'L'],
+                    ['G', 'H', 'J'],
+                    ['I'],
+                    ['M', 'K'],
+                    ['N']
+                ]
+            },
+            3: {
+                name: "Late Feasible Layers",
+                antichains: [
+                    ['A'],
+                    ['B', 'C'],
+                    ['D', 'E'],
+                    ['F'],
+                    ['G', 'H'],
+                    ['I', 'J', 'L'],
+                    ['M', 'K'],
+                    ['N']
+                ]
+            }
+        };
+
+        function analyzeSchedule(taskMap, edgeList) {
+            const ids = Object.keys(taskMap);
+            const successors = Object.fromEntries(ids.map(id => [id, []]));
+            const predecessors = Object.fromEntries(ids.map(id => [id, []]));
+
+            edgeList.forEach(([from, to]) => {
+                if (!taskMap[from] || !taskMap[to]) throw new Error(`Unknown task in dependency ${from} -> ${to}`);
+                successors[from].push(to);
+                predecessors[to].push(from);
+            });
+
+            const indegree = Object.fromEntries(ids.map(id => [id, predecessors[id].length]));
+            const queue = ids.filter(id => indegree[id] === 0);
+            const topologicalOrder = [];
+            while (queue.length) {
+                const id = queue.shift();
+                topologicalOrder.push(id);
+                successors[id].forEach(next => {
+                    indegree[next] -= 1;
+                    if (indegree[next] === 0) queue.push(next);
+                });
+            }
+            if (topologicalOrder.length !== ids.length) throw new Error('The dependency graph contains a cycle.');
+
+            const reachability = Object.fromEntries(ids.map(id => [id, new Set()]));
+            [...topologicalOrder].reverse().forEach(id => {
+                successors[id].forEach(next => {
+                    reachability[id].add(next);
+                    reachability[next].forEach(descendant => reachability[id].add(descendant));
+                });
+            });
+
+            const rank = {};
+            const chainParent = {};
+            const durationTotal = {};
+            const durationParent = {};
+            topologicalOrder.forEach(id => {
+                rank[id] = 1;
+                chainParent[id] = null;
+                durationTotal[id] = taskMap[id].duration;
+                durationParent[id] = null;
+                predecessors[id].forEach(previous => {
+                    if (rank[previous] + 1 > rank[id]) {
+                        rank[id] = rank[previous] + 1;
+                        chainParent[id] = previous;
+                    }
+                    if (durationTotal[previous] + taskMap[id].duration > durationTotal[id]) {
+                        durationTotal[id] = durationTotal[previous] + taskMap[id].duration;
+                        durationParent[id] = previous;
+                    }
+                });
+            });
+
+            const unwind = (end, parentMap) => {
+                const path = [];
+                for (let id = end; id; id = parentMap[id]) path.unshift(id);
+                return path;
+            };
+            const heightEnd = topologicalOrder.reduce((best, id) => rank[id] > rank[best] ? id : best);
+            const durationEnd = topologicalOrder.reduce((best, id) => durationTotal[id] > durationTotal[best] ? id : best);
+
+            return {
+                height: rank[heightEnd],
+                reachability,
+                spine: unwind(heightEnd, chainParent),
+                criticalPath: unwind(durationEnd, durationParent),
+                criticalDuration: durationTotal[durationEnd]
+            };
+        }
+
+        const analysis = analyzeSchedule(tasks, dependencies);
+        const spine = analysis.spine;
+
+        function validatePartition(partition) {
+            const groups = partition.antichains;
+            const flattened = groups.flat();
+            const taskIds = Object.keys(tasks);
+            const coversOnce = flattened.length === taskIds.length &&
+                new Set(flattened).size === taskIds.length && taskIds.every(id => flattened.includes(id));
+            const groupsAreAntichains = groups.every(group => group.every((left, index) =>
+                group.slice(index + 1).every(right =>
+                    !analysis.reachability[left].has(right) && !analysis.reachability[right].has(left))));
+            const oneSpineTaskPerGroup = groups.every(group => group.filter(id => spine.includes(id)).length === 1);
+            return {
+                valid: coversOnce && groupsAreAntichains && oneSpineTaskPerGroup && groups.length === analysis.height,
+                coversOnce,
+                groupsAreAntichains,
+                oneSpineTaskPerGroup
+            };
+        }
+
+        function chainMeetsPartition(chain, partition) {
+            return partition.antichains.every(group => group.filter(id => chain.includes(id)).length === 1);
+        }
+
+        const partitionChecks = Object.fromEntries(Object.entries(partitions).map(([id, partition]) => [id, validatePartition(partition)]));
+        const criticalPathSpineChecks = Object.fromEntries(Object.entries(partitions).map(([id, partition]) =>
+            [id, analysis.criticalPath.length === analysis.height && chainMeetsPartition(analysis.criticalPath, partition)]));
+        
+        let currentPartition = 0;
+        let spineVisible = false;
+        let algorithmStep = 0;
+        let animationTimers = [];
+
+        function later(callback, delay) {
+            const timer = setTimeout(() => {
+                animationTimers = animationTimers.filter(id => id !== timer);
+                callback();
+            }, delay);
+            animationTimers.push(timer);
+        }
+
+        function clearAnimationTimers() {
+            animationTimers.forEach(clearTimeout);
+            animationTimers = [];
+        }
+        
+        function initializeGraph() {
+            const svg = d3.select('#graph');
+            
+            // Clear any existing content
+            svg.selectAll('*').remove();
+            
+            // Add arrow marker
+            svg.append('defs').append('marker')
+                .attr('id', 'arrowhead')
+                .attr('viewBox', '0 -5 10 10')
+                .attr('refX', 30)
+                .attr('refY', 0)
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
+                .attr('orient', 'auto')
+                .append('path')
+                .attr('d', 'M0,-5L10,0L0,5')
+                .attr('fill', '#7f8c8d');
+            
+            // Add antichain groups
+            svg.append('g').attr('class', 'antichain-groups');
+            
+            // Add edges
+            const edges = svg.append('g').attr('class', 'edges');
+            dependencies.forEach(([from, to]) => {
+                const x1 = tasks[from].x + 50;
+                const y1 = tasks[from].y + 20;
+                const x2 = tasks[to].x - 5;
+                const y2 = tasks[to].y + 20;
+                
+                edges.append('path')
+                    .attr('class', 'edge')
+                    .attr('id', `edge-${from}-${to}`)
+                    .attr('d', `M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`);
+            });
+            
+            // Add nodes
+            const nodes = svg.append('g').attr('class', 'nodes');
+            Object.entries(tasks).forEach(([id, task]) => {
+                const g = nodes.append('g')
+                    .attr('class', 'node')
+                    .attr('id', `node-${id}`)
+                    .attr('transform', `translate(${task.x}, ${task.y})`)
+                    .on('mouseenter', function(event) {
+                        showTooltip(event, id, task);
+                    })
+                    .on('mouseleave', hideTooltip);
+                
+                g.append('rect')
+                    .attr('width', 100)
+                    .attr('height', 40)
+                    .attr('rx', 5);
+                
+                g.append('text')
+                    .attr('x', 50)
+                    .attr('y', 25)
+                    .attr('text-anchor', 'middle')
+                    .text(task.name);
+            });
+        }
+        
+        function showPartition(num, event) {
+            currentPartition = num;
+            
+            // Reset all buttons
+            document.querySelectorAll('.partition-btn').forEach(btn => btn.classList.remove('active'));
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // If no event, find and activate the correct button
+                document.querySelectorAll('.partition-btn')[num - 1].classList.add('active');
+            }
+            
+            // Clear previous antichain highlighting
+            d3.selectAll('.node').attr('class', 'node');
+            d3.selectAll('.antichain-rect').remove();
+            
+            // Apply new antichain coloring
+            const partition = partitions[num];
+            const check = partitionChecks[num];
+            const colorScheme = ['#f39c12', '#27ae60', '#8e44ad', '#16a085', '#d35400', '#2c7fb8', '#6c5ce7', '#596275'];
+            
+            partition.antichains.forEach((antichain, index) => {
+                // Calculate bounding box for antichain
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                antichain.forEach(taskId => {
+                    d3.select(`#node-${taskId}`).attr('class', `node antichain-${index + 1}`);
+                    const task = tasks[taskId];
+                    minX = Math.min(minX, task.x - 10);
+                    minY = Math.min(minY, task.y - 10);
+                    maxX = Math.max(maxX, task.x + 110);
+                    maxY = Math.max(maxY, task.y + 50);
+                });
+                
+                // Draw antichain grouping rectangle
+                d3.select('.antichain-groups').append('rect')
+                    .attr('class', 'antichain-rect antichain-group')
+                    .attr('x', minX)
+                    .attr('y', minY)
+                    .attr('width', maxX - minX)
+                    .attr('height', maxY - minY)
+                    .attr('fill', colorScheme[index % colorScheme.length])
+                    .attr('stroke', colorScheme[index % colorScheme.length]);
+            });
+            
+            // Reapply spine if visible
+            if (spineVisible) {
+                spine.forEach(taskId => {
+                    d3.select(`#node-${taskId}`).classed('spine', true);
+                });
+            }
+
+            const summary = document.getElementById('validation-summary');
+            summary.className = `validation-summary ${check.valid ? 'ok' : 'bad'}`;
+            summary.textContent = check.valid
+                ? `${partition.name}: verified ${analysis.height}-part minimum antichain partition; the selected spine ${spine.join(' -> ')} meets every part exactly once. CPM path: ${analysis.criticalPath.join(' -> ')} (${analysis.criticalDuration} days); ${criticalPathSpineChecks[num] ? 'it also meets every part and is a second spine.' : 'it is not certified as a spine by this partition.'}`
+                : `${partition.name}: validation failed. This grouping is not a valid spine certificate.`;
+        }
+        
+        function toggleSpine() {
+            spineVisible = !spineVisible;
+            const btn = document.getElementById('spine-btn');
+            btn.textContent = spineVisible ? 'Hide Spine' : 'Show Spine';
+            btn.classList.toggle('active');
+            
+            if (spineVisible) {
+                // Apply spine highlighting
+                spine.forEach(taskId => {
+                    const node = d3.select(`#node-${taskId}`);
+                    node.classed('spine', true);
+                });
+            } else {
+                // Remove spine highlighting
+                d3.selectAll('.node').classed('spine', false);
+                if (currentPartition > 0) {
+                    // Re-apply current partition colors without event
+                    showPartition(currentPartition, null);
+                }
+            }
+        }
+        
+        function toggleInfo(type) {
+            const panel = document.getElementById(`info-${type}`);
+            panel.classList.toggle('active');
+            
+            // Close other panels
+            ['concept', 'antichain', 'practical'].forEach(t => {
+                if (t !== type) {
+                    document.getElementById(`info-${t}`).classList.remove('active');
+                }
+            });
+        }
+        
+        function showTooltip(event, id, task) {
+            const tooltip = document.getElementById('tooltip');
+            const isSpineTask = spine.includes(id);
+            tooltip.innerHTML = `
+                <strong>${task.name}</strong><br>
+                Duration: ${task.duration} days<br>
+                ${isSpineTask ? '<em>Part of project spine</em>' : ''}
+            `;
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 30) + 'px';
+            tooltip.style.opacity = 1;
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').style.opacity = 0;
+        }
+        
+        // Algorithm functions
+        function runAlgorithm() {
+            clearAnimationTimers();
+            d3.selectAll('.node').classed('highlight', false);
+            d3.selectAll('.edge').classed('highlight', false);
+            if (algorithmStep === 0) {
+                document.getElementById('run-algo-btn').textContent = 'Next Step';
+                algorithmStep = 1;
+                showAlgorithmStep(1);
+            } else if (algorithmStep < 5) {
+                algorithmStep++;
+                showAlgorithmStep(algorithmStep);
+            } else {
+                // Final step - highlight the spine
+                showSpineWithAnimation();
+            }
+        }
+        
+        function showAlgorithmStep(step) {
+            // Mark previous steps as completed
+            for (let i = 1; i < step; i++) {
+                document.getElementById(`step-${i}`).classList.add('completed');
+            }
+            
+            // Show current step
+            document.getElementById(`step-${step}`).classList.add('active');
+            
+            // Highlight relevant parts of the graph
+            switch(step) {
+                case 1:
+                    // Highlight all nodes
+                    d3.selectAll('.node').classed('highlight', true);
+                    later(() => {
+                        d3.selectAll('.node').classed('highlight', false);
+                    }, 1000);
+                    break;
+                case 2:
+                    // Highlight edges
+                    d3.selectAll('.edge').classed('highlight', true);
+                    later(() => {
+                        d3.selectAll('.edge').classed('highlight', false);
+                    }, 1000);
+                    break;
+                case 3:
+                    // Highlight the computed maximum-cardinality chain
+                    spine.forEach(id => {
+                        d3.select(`#node-${id}`).classed('highlight', true);
+                    });
+                    later(() => {
+                        d3.selectAll('.node').classed('highlight', false);
+                    }, 1500);
+                    break;
+                case 4:
+                    // Show a partition being tested
+                    if (currentPartition === 0) {
+                        showPartition(1, null);
+                    }
+                    break;
+                case 5:
+                    // Show the spine
+                    showSpineWithAnimation();
+                    document.getElementById('run-algo-btn').textContent = 'Complete';
+                    break;
+            }
+        }
+        
+        function showSpineWithAnimation() {
+            clearAnimationTimers();
+            spineVisible = true;
+            const btn = document.getElementById('spine-btn');
+            btn.textContent = 'Hide Spine';
+            btn.classList.add('active');
+            
+            // Animate spine nodes one by one
+            spine.forEach((taskId, index) => {
+                later(() => {
+                    d3.select(`#node-${taskId}`).classed('spine', true);
+                    
+                    // Also highlight the edge to the next spine node
+                    if (index < spine.length - 1) {
+                        const nextId = spine[index + 1];
+                        d3.select(`#edge-${taskId}-${nextId}`).classed('highlight', true);
+                    }
+                }, index * 200);
+            });
+            
+            // Remove edge highlights after animation
+            later(() => {
+                d3.selectAll('.edge').classed('highlight', false);
+            }, spine.length * 200 + 500);
+        }
+        
+        function resetAlgorithm() {
+            clearAnimationTimers();
+            algorithmStep = 0;
+            spineVisible = false;
+            document.getElementById('run-algo-btn').textContent = 'Run Construction';
+            document.getElementById('spine-btn').textContent = 'Show Spine';
+            document.getElementById('spine-btn').classList.remove('active');
+            
+            // Hide all algorithm steps
+            document.querySelectorAll('.algorithm-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // Reset graph highlighting
+            d3.selectAll('.node').classed('highlight', false);
+            d3.selectAll('.node').classed('spine', false);
+            d3.selectAll('.edge').classed('highlight', false);
+            showPartition(currentPartition || 1, null);
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGraph();
+            document.getElementById('spine-result').textContent = `Height-selected spine: ${spine.join(' -> ')} (${spine.reduce((sum, id) => sum + tasks[id].duration, 0)} days)`;
+            document.getElementById('critical-result').textContent = `CPM-selected spine: ${analysis.criticalPath.join(' -> ')} (${analysis.criticalDuration} days)`;
+            showPartition(1, null);
+        });
+    </script>
+</body>
+</html>

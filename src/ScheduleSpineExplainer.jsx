@@ -11,7 +11,7 @@ const COL = {
   warnBg: "#fbf0d8", warnFg: "#7a4d09", infoBg: "#e8f1fb", infoFg: "#13518a",
 };
 
-// ── schedule data (a graded poset = synchronization stages) ───────────────
+// ── schedule data (a graded precedence poset) ─────────────────────────────
 const FR = [["A1"], ["B1", "B2", "B3"], ["C1", "C2"], ["D1", "D2", "D3"], ["E1"]];
 const CX = [75, 208, 340, 472, 605], CY = 140, GAP = 66;
 const N = {}, NL = [];
@@ -120,14 +120,14 @@ function Loop({ n, inf }) {
   );
 }
 
-// ── boundary: safe grid + dangerous tower ─────────────────────────────
+// ── boundary: explicit-spine grid + Hollom's P5 counterexample ─────────
 function Grid() {
   const gx = x => 46 + x * 42, gy = y => 250 - y * 42;
   const dg = k => { const x1 = Math.max(0, k - 5), y1 = Math.min(k, 5), x2 = Math.min(k, 5), y2 = Math.max(0, k - 5); return <line key={k} x1={gx(x1)} y1={gy(y1)} x2={gx(x2)} y2={gy(y2)} stroke={COL.conc} strokeOpacity="0.55" strokeWidth="2" strokeDasharray="3 3" />; };
   const dots = []; for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) dots.push(<circle key={`${x},${y}`} cx={gx(x)} cy={gy(y)} r="6" fill={x === 0 ? COL.spine : COL.node} />);
   return (
     <svg viewBox="0 0 320 300" style={{ width: "100%", height: "auto", display: "block" }} role="img">
-      <title>Two parallel streams, omega by omega</title>
+      <title>A finite window into the coordinatewise omega by omega order</title>
       {[2, 4, 6, 8].map(dg)}
       <line x1={gx(0)} y1={gy(0)} x2={gx(0)} y2={gy(5)} stroke={COL.spine} strokeWidth="3.5" strokeLinecap="round" />
       {dots}
@@ -139,29 +139,29 @@ function Grid() {
 }
 function Tower() {
   const blk = (yt, lab) => { const out = [<rect key="r" x="40" y={yt} width="240" height="78" rx="10" fill="#E24B4A" fillOpacity="0.12" stroke="#A32D2D" strokeOpacity="0.55" />, <text key="l" x="54" y={yt + 18} fontSize="12" fill={COL.sub}>{lab}</text>]; for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) out.push(<circle key={`${r}-${c}`} cx={88 + c * 40} cy={yt + 32 + r * 16} r="4" fill={COL.node} />); return out; };
-  const ar = yy => <line x1="160" y1={yy} x2="160" y2={yy + 20} stroke="#A32D2D" strokeWidth="1.5" markerEnd="url(#ar2)" />;
+  const ar = yy => <g><line x1="160" y1={yy} x2="160" y2={yy + 20} stroke="#A32D2D" strokeWidth="1.5" markerEnd="url(#ar2)" /><text x="174" y={yy + 14} fontSize="10" fill={COL.sub}>tuned relation</text></g>;
   return (
     <svg viewBox="0 0 320 322" style={{ width: "100%", height: "auto", display: "block" }} role="img">
-      <title>An endless descending tower of infinite phases</title>
+      <title>Hollom's P5: descending omega by omega levels with tuned relations</title>
       <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#A32D2D" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></marker></defs>
-      {blk(12, "L₀")}{ar(90)}{blk(118, "L₁")}{ar(196)}{blk(224, "L₂")}
-      <text x="160" y="316" textAnchor="middle" fontSize="12" fill={COL.sub}>⋮ no base level — descends forever</text>
+      {blk(12, "L₀ ≅ ω × ω")}{ar(90)}{blk(118, "L₁ ≅ ω × ω")}{ar(196)}{blk(224, "L₂ ≅ ω × ω")}
+      <text x="160" y="316" textAnchor="middle" fontSize="11" fill={COL.sub}>⋮ more ω × ω levels (n increases downward)</text>
     </svg>
   );
 }
 
 // ── classifier data ───────────────────────────────────────────────────
 const CLASSES = [
-  { k: "finite", label: "Finite — any real, datable plan", v: "yes", who: "Folklore / Dilworth lineage", law: "Every finite no-infinite-antichain order has a spine.", read: "Every actual schedule you will ever build. The cases below are all idealised limits." },
-  { k: "w2", label: "Two-track — peak concurrency at most 2", v: "yes", who: "Aharoni–Korman, 1992", law: "Width at most 2 implies a spine.", read: "At most two activities ever genuinely overlap." },
-  { k: "bdd", label: "Bounded subdivision — finitely many activities between any two", v: "yes", who: "Duffus–Goddard, 2002", law: "No infinite interval implies a spine.", read: "No stretch of the plan is infinitely finely subdivided." },
-  { k: "locfin", label: "Local concurrency finite — each activity overlaps only finitely many others", v: "yes", who: "Zaguia, 2024", law: "Locally finite incomparability graph implies a spine.", read: "The most realistic infinite condition: unbounded length, bounded simultaneity around any one task." },
-  { k: "nfree", label: "Series / parallel only — no N-shaped crossover", v: "yes", who: "Zaguia, 2024", law: "N-free implies a spine.", read: "Built purely by nesting blocks in series and in parallel." },
-  { k: "vac", label: "Countable and vacillating — unbounded, but no endless nested-infinite tower", v: "yes", who: "Hollman, 2024 (the new result)", law: "Countable and vacillating implies a spine.", read: "The big new class: allows infinite length, infinite peak concurrency, infinite 2-D frontiers — forbids only the nested-infinite-regress shape." },
-  { k: "w3", label: "Width 3, infinite, otherwise generic", v: "open", who: "Open problem (Hollman, Q6.1)", law: "Unknown — even for countable orders.", read: "A surprisingly thin gap: three concurrent tracks along an infinite timeline is not settled either way." },
-  { k: "tower", label: "Contains the nested-infinite tower (non-vacillating, infinite width)", v: "no", who: "Hollman, 2024 (counterexample, Lean-verified)", law: "A spine need not exist.", read: "An endless descending stack of infinite concurrent phases with no base. No backbone can cover every front. A strongly maximal chain still exists if countable." },
+  { k: "finite", label: "Finite — any finite schedule model", v: "yes", who: "Finite height layering (Mirsky duality)", law: "Every finite poset has a spine: rank by longest-chain height into antichain layers, then a maximum chain meets every layer.", read: "This covers every finite precedence model; no infinite-case hypothesis is needed." },
+  { k: "w2", label: "Width at most 2 — no three pairwise-incomparable tasks", v: "yes", who: "Aharoni–Korman, 1992", law: "Every poset of width at most 2 has a spine.", read: "No antichain contains more than two tasks. This describes the precedence order, not necessarily actual execution overlap." },
+  { k: "bdd", label: "FAC with finite intervals", v: "yes", who: "Duffus–Goddard, 2002, Theorem 4.1", law: "No infinite intervals and no infinite antichains together imply a spine.", read: "Every interval between comparable elements is finite, and the order is FAC." },
+  { k: "locfin", label: "Locally finite incomparability", v: "yes", who: "Zaguia, 2024", law: "A locally finite incomparability graph implies a spine.", read: "Each task is precedence-incomparable with only finitely many others. This property itself rules out infinite antichains." },
+  { k: "nfree", label: "FAC and N-free — no N-shaped suborder", v: "yes", who: "Zaguia, 2024", law: "Every N-free FAC poset has a spine.", read: "The cited result requires FAC as well as exclusion of the four-point N pattern." },
+  { k: "vac", label: "Countable, vacillating and FAC", v: "yes", who: "Hollom, 2025, Theorem 1.18", law: "Every countable vacillating FAC poset has a spine.", read: "This class may have infinite chains and unbounded finite antichain sizes. Vacillation excludes a specific contiguous-chain decomposition, not every kind of recursion." },
+  { k: "w3", label: "Width 3, infinite, otherwise generic", v: "open", who: "Open problem (Hollom, 2025, Q6.1)", law: "Whether every finite-width poset has a spine is unknown, even for countable width 3.", read: "Width 3 means that no antichain has more than three elements; it does not assert three executing tracks." },
+  { k: "tower", label: "Hollom's P5 — tuned ω × ω levels", v: "no", who: "Hollom, 2025, Example 5.6 and Proposition 5.7", law: "P5 is a countable scattered FAC poset with no spine.", read: "P5 has arbitrarily large finite antichains but no infinite antichain (width ℵ₀). Its specially engineered adjacent-level comparisons matter; non-vacillation or width ℵ₀ alone does not imply failure." },
 ];
-const VMAP = { yes: { w: "Spine guaranteed", c: COL.safeFg }, open: { w: "Open — unknown", c: COL.warnFg }, no: { w: "No spine may exist", c: COL.dangerFg } };
+const VMAP = { yes: { w: "Spine guaranteed", c: COL.safeFg }, open: { w: "Open — unknown", c: COL.warnFg }, no: { w: "No spine in this example", c: COL.dangerFg } };
 const SD = { yes: COL.safeFg, open: COL.warnFg, no: COL.dangerFg };
 
 // ── main component ────────────────────────────────────────────────────
@@ -178,23 +178,23 @@ export default function ScheduleSpineExplainer() {
   const steps = ["1 · Reframe", "2 · Lanes vs spine", "3 · Why infinity", "4 · The boundary", "5 · Your schedule"];
 
   const capReframe = () => {
-    if (!focus) return <span><b>Click any activity.</b> Blue = on a dependency thread with it (order is forced). Orange = genuinely concurrent (free to overlap). That two-way split — comparable vs incomparable — is the entire raw material of a schedule.</span>;
+    if (!focus) return <span><b>Click any activity.</b> Blue = precedence-related to it (order is forced). Orange = incomparable (precedence alone permits either order or overlap). That two-way split — comparable vs incomparable — is the raw material of the poset model.</span>;
     const f = N[focus];
     const inc = NL.filter(n => n.fr === f.fr && n.id !== f.id).map(n => n.id);
     const cmp = NL.filter(n => n.fr !== f.fr).map(n => n.id);
-    return <span><b>{f.id}</b> — concurrent with {inc.length} ({inc.join(", ") || "none"}); on a dependency thread with {cmp.length}. A chain through the blue set is a candidate path; the orange set is one concurrency front.</span>;
+    return <span><b>{f.id}</b> — incomparable with {inc.length} ({inc.join(", ") || "none"}); precedence-related to {cmp.length}. A chain through the blue set is a candidate path; the orange set is one antichain front.</span>;
   };
   const capSpine = () => {
     const mem = FR[front], sp = spineOfFront(front);
-    if (front === 0 || front === 4) return <span>A spine is one backbone (purple) plus a grouping of every activity into concurrency fronts, where the backbone meets each front exactly once; the rest hang off as ribs. Front {front} is a single activity, <b>{sp}</b> — the backbone runs straight through it.</span>;
-    return <span>Front {front} = {`{ ${mem.join(", ")} }`} — mutually concurrent, an antichain. The backbone contributes <b>exactly one</b> activity, <b>{sp}</b>; the others ({mem.filter(x => x !== sp).join(", ")}) hang off as ribs.</span>;
+    if (front === 0 || front === 4) return <span>A spine is one chain (purple) together with an antichain partition of every activity, where the chain meets each part exactly once. Front {front} is the singleton <b>{sp}</b> — the spine runs straight through it.</span>;
+    return <span>Front {front} = {`{ ${mem.join(", ")} }`} — pairwise incomparable, hence an antichain. The spine contributes <b>exactly one</b> activity, <b>{sp}</b>; the others ({mem.filter(x => x !== sp).join(", ")}) hang off as ribs in this certificate.</span>;
   };
 
   return (
     <div style={S.wrap}>
       <div style={S.leg}>
         <span style={S.legItem}><i style={{ ...S.dot, background: COL.order }} />Precedence — one activity waits for another</span>
-        <span style={S.legItem}><i style={{ ...S.dot, background: COL.conc }} />Concurrency — genuinely parallel</span>
+        <span style={S.legItem}><i style={{ ...S.dot, background: COL.conc }} />Incomparability — precedence permits either order or overlap</span>
         <span style={S.legItem}><i style={{ ...S.dot, background: COL.spine }} />Backbone / spine</span>
       </div>
       <div style={S.step}>
@@ -223,7 +223,7 @@ export default function ScheduleSpineExplainer() {
             )}
           </div>
           <Network mode={mode} front={front} onPick={() => { }} />
-          <div style={S.note}>{mode === "lanes" ? "Dilworth (1950): peak concurrency here is 3, so the plan splits cleanly into 3 dependency threads — resource lanes. Useful, but that is three threads, not one backbone." : capSpine()}</div>
+          <div style={S.note}>{mode === "lanes" ? "Dilworth (1950): the width here is 3, so the plan splits into 3 chains. These are precedence threads, not evidence of three resources or three tasks actually executing at once." : capSpine()}</div>
         </div>
       )}
 
@@ -247,33 +247,33 @@ export default function ScheduleSpineExplainer() {
           <div style={S.col}>
             <span style={{ ...S.badge, background: COL.safeBg, color: COL.safeFg }}>Safe — a spine exists</span>
             <Grid />
-            <div style={S.note}>Two unbounded streams in genuine parallel (ω × ω). The concurrency fronts are the anti-diagonals; the purple left-edge backbone meets each one exactly once. This stays inside the safe class.</div>
+            <div style={S.note}>The coordinatewise order on ω × ω. Its anti-diagonals are finite antichains whose sizes are unbounded; there is no infinite antichain. The purple left-edge chain meets each anti-diagonal exactly once, giving an explicit spine.</div>
           </div>
           {!why ? (
             <div style={S.col}>
-              <span style={{ ...S.badge, background: COL.dangerBg, color: COL.dangerFg }}>Danger — no spine</span>
+              <span style={{ ...S.badge, background: COL.dangerBg, color: COL.dangerFg }}>Counterexample — P5 has no spine</span>
               <Tower />
-              <div style={S.note}>Stack infinite concurrent phases in an endless descending tower with <b>no base level</b> (lexicographic nesting). This leaves the safe class — Hollman builds an explicit schedule of exactly this flavour with no backbone at all.</div>
-              <button style={S.link} onClick={() => setWhy(true)}>Why can no backbone cover every front?</button>
+              <div style={S.note}>Hollom's P5 is a countable scattered FAC poset built from a descending sequence of ω × ω levels with specially defined within- and adjacent-level comparisons. Those relations are essential: a generic non-vacillating tower need not be spineless, and a non-vacillating chain is its own spine.</div>
+              <button style={S.link} onClick={() => setWhy(true)}>Why can a strongly maximal chain still fail to be a spine?</button>
             </div>
           ) : (
             <div style={S.col}>
-              <span style={{ ...S.badge, background: COL.dangerBg, color: COL.dangerFg }}>The pigeonhole</span>
+              <span style={{ ...S.badge, background: COL.dangerBg, color: COL.dangerFg }}>Example 5.1 — one SMC is not a spine</span>
               <div style={{ marginTop: 4 }}>
                 <div style={{ margin: "0 0 12px" }}>
-                  <span style={{ display: "block", fontSize: 13, color: COL.sub, margin: "0 0 6px" }}>Backbone slots still free: m</span>
+                  <span style={{ display: "block", fontSize: 13, color: COL.sub, margin: "0 0 6px" }}>C₁ members available after a is paired with (4,0): four</span>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["(0,0)", "(1,0)", "(2,0)", "(3,0)"].map(c => <span key={c} style={S.chip}>{c}</span>)}</div>
                 </div>
                 <div style={{ margin: "0 0 12px" }}>
-                  <span style={{ display: "block", fontSize: 13, color: COL.sub, margin: "0 0 6px" }}>A comparable chain needing m+1 distinct fronts</span>
+                  <span style={{ display: "block", fontSize: 13, color: COL.sub, margin: "0 0 6px" }}>Five comparable C₂ members needing distinct antichains</span>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {["(0,1)", "(1,1)", "(2,1)", "(3,1)"].map(c => <span key={c} style={{ ...S.chip, background: COL.infoBg, color: COL.infoFg, borderColor: "#bcd6f1" }}>{c}</span>)}
                     <span style={{ ...S.chip, background: COL.dangerBg, color: COL.dangerFg, borderColor: "#eccaca" }}>✗ (4,1)</span>
                   </div>
                 </div>
-                <div style={S.note}>Activity <b>a</b> has already claimed slot (4,0), leaving <b>m</b> backbone slots for <b>m+1</b> mutually-ordered tasks. m+1 into m is impossible — so this backbone, though strongly maximal, is not a spine (Hollman, example 5.1). Make that shortfall recur everywhere with no escape and you have the spineless tower.</div>
+                <div style={S.note}>If <b>a</b> shares an antichain with (4,0), that member of C₁ is unavailable. Five mutually comparable points cannot be assigned to the four remaining C₁ members, so C₁ is not a spine even though it is strongly maximal. This does <b>not</b> make P1 spineless: Hollom shows that C₂ is a spine. P5 requires a separate global construction.</div>
               </div>
-              <button style={S.link} onClick={() => setWhy(false)}>Back to the two shapes</button>
+              <button style={S.link} onClick={() => setWhy(false)}>Back to the theorem boundary</button>
             </div>
           )}
         </div>
@@ -281,7 +281,7 @@ export default function ScheduleSpineExplainer() {
 
       {scene === 4 && (
         <div>
-          <div style={S.note}>Set the shape of your schedule. Everything below the first card is an idealised, unbounded limit — the only regime where the question has any teeth.</div>
+          <div style={S.note}>Set the mathematical shape of the precedence order. Finite schedules are settled by the first result; the other cards are structural conditions that become significant when studying infinite limits.</div>
           <div style={S.cards}>
             {CLASSES.map(c => (
               <button key={c.k} onClick={() => setPick(c.k)} style={{ textAlign: "left", fontSize: 13, lineHeight: 1.45, padding: 12, borderRadius: 12, cursor: "pointer", background: pick === c.k ? COL.surface : COL.panel, border: `1px solid ${pick === c.k ? COL.infoFg : COL.line}`, color: COL.ink, display: "flex", gap: 9, alignItems: "flex-start" }}>
@@ -300,11 +300,11 @@ export default function ScheduleSpineExplainer() {
               </>
             ); })() : "Pick a shape to see which result governs it."}
           </div>
-          <div style={{ fontSize: 13, color: COL.sub, margin: "12px 0 0" }}>Every spine is a strongly maximal chain. Even where no spine exists, every <i>countable</i> schedule still has a strongly maximal chain (Hollman 2024) — a backbone candidate no local rerouting can improve, the nearest structural cousin to a critical path.</div>
+          <div style={{ fontSize: 13, color: COL.sub, margin: "12px 0 0" }}>Every spine is a strongly maximal chain. Hollom's Theorem 1.15 guarantees a strongly maximal chain in every <i>countable FAC</i> poset, even though such a chain need not be a spine. This is a structural maximality statement, not a duration-optimised critical-path calculation.</div>
         </div>
       )}
 
-      <div style={S.foot}>Reading Hollman, “A resolution of the Aharoni–Korman conjecture” (arXiv:2411.16844, 2024–25). Attributions as cited therein — Dilworth 1950 · Aharoni–Korman 1992 · Duffus–Goddard 2002 · Zaguia 2024. The counterexample is formally verified in Lean by Bhavik Mehta.</div>
+      <div style={S.foot}>Reading Hollom, “A resolution of the Aharoni–Korman conjecture” (arXiv:2411.16844, 2024–25). Attributions as cited therein — Dilworth 1950 · Aharoni–Korman 1992 · Duffus–Goddard 2002 · Zaguia 2024. Proposition 5.7 was formally verified in Lean by Bhavik Mehta.</div>
     </div>
   );
 }

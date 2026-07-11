@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Spines &amp; the Vacillation Boundary</title>
+<script src="../vendor/d3-7.8.5.min.js"></script>
+<style>
+  :root{
+    --ink:#23303a; --muted:#6b7d8a; --line:#d9e1e6; --bg:#f4f6f7;
+    --fwd:#2c7fb8; --bwd:#d9534f; --ok:#2e8b57; --bad:#c0392b; --panel:#eef3f5;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+       margin:0;padding:20px;background:var(--bg);color:#333;line-height:1.5}
+  svg{display:block}
+
+  /* ---------- SHED SPINE SECTION ---------- */
+  .shed-app{max-width:1200px;margin:0 auto}
+  .shed-app .container{background:#fff;padding:30px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+  .shed-app h1{color:#2c3e50;margin-bottom:10px;}
+  .shed-app .subtitle{color:#7f8c8d;margin-bottom:30px;}
+  .shed-app .controls{display:flex;gap:10px;margin-bottom:30px;flex-wrap:wrap;}
+  .shed-app button{padding:10px 20px;border:none;border-radius:6px;background:#3498db;color:#fff;
+                   cursor:pointer;font-size:14px;transition:all .3s ease;}
+  .shed-app button:hover{background:#2980b9;transform:translateY(-1px);}
+  .shed-app button.active{background:#e74c3c;}
+  .shed-app .info-button{background:#95a5a6;padding:8px 16px;font-size:13px;}
+  .shed-app .info-button:hover{background:#7f8c8d;}
+  .shed-app #graph-container{border:2px solid #ecf0f1;border-radius:8px;padding:20px;
+                            margin-bottom:30px;background:#fafafa;overflow-x:auto;}
+  .shed-app .node{cursor:pointer;transition:all .3s ease;}
+  .shed-app .node rect{fill:#3498db;stroke:#2980b9;stroke-width:2;}
+  .shed-app .node:hover rect{filter:brightness(1.12);}
+  .shed-app .node.antichain-1 rect{fill:#f39c12;stroke:#d68910;}
+  .shed-app .node.antichain-2 rect{fill:#27ae60;stroke:#229954;}
+  .shed-app .node.antichain-3 rect{fill:#8e44ad;stroke:#7d3c98;}
+  .shed-app .node.antichain-4 rect{fill:#16a085;stroke:#138d75;}
+  .shed-app .node.antichain-5 rect{fill:#d35400;stroke:#ba4a00;}
+  .shed-app .node.antichain-6 rect{fill:#2c7fb8;stroke:#1f5f8a;}
+  .shed-app .node.antichain-7 rect{fill:#6c5ce7;stroke:#5141bf;}
+  .shed-app .node.antichain-8 rect{fill:#596275;stroke:#3f4654;}
+  .shed-app .node.spine rect{fill:#e74c3c !important;stroke:#c0392b !important;stroke-width:3 !important;}
+  .shed-app .node text{fill:#fff;font-size:12px;font-weight:500;pointer-events:none;}
+  .shed-app .edge{fill:none;stroke:#7f8c8d;stroke-width:2;marker-end:url(#arrowhead);}
+  .shed-app .legend{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;}
+  .shed-app .legend-item{display:flex;align-items:center;gap:8px;}
+  .shed-app .legend-box{width:20px;height:20px;border-radius:4px;border:2px solid #333;}
+  .shed-app .info-panel{background:#ecf0f1;padding:20px;border-radius:8px;margin-top:20px;display:none;}
+  .shed-app .info-panel.active{display:block;}
+  .shed-app .info-panel h3{margin-top:0;color:#2c3e50;}
+  .shed-app .tooltip{position:absolute;background:rgba(0,0,0,.9);color:#fff;padding:8px 12px;
+                     border-radius:4px;font-size:13px;pointer-events:none;opacity:0;
+                     transition:opacity .3s;z-index:1000;}
+  .shed-app .antichain-group{fill-opacity:.1;stroke-width:3;stroke-dasharray:5,5;}
+  .shed-app .validation-summary{margin:0 0 18px;padding:12px 14px;border-radius:6px;
+                                font-size:13px;line-height:1.5;}
+  .shed-app .validation-summary.ok{color:#17633a;background:#eaf7ef;border:1px solid #b8dec6;}
+  .shed-app .validation-summary.bad{color:#8b1e1e;background:#fdeeee;border:1px solid #efbcbc;}
+
+  /* ---------- BRIDGE ---------- */
+  .bridge{max-width:1100px;margin:34px auto;padding:0 8px;text-align:center;color:var(--muted)}
+  .bridge h2{color:var(--ink);font-size:18px;margin:0 0 8px}
+  .bridge p{margin:0 auto;max-width:760px;font-size:14px}
+  .bridge .rule{height:1px;background:var(--line);max-width:760px;margin:22px auto}
+
+  /* ---------- REVIEW CYCLE SECTION ---------- */
+  .rc-app{max-width:1100px;margin:0 auto}
+  .rc-app .wrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px}
+  .rc-app h1{font-size:21px;margin:0 0 4px;color:var(--ink)}
+  .rc-app .sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+  .rc-app .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .rc-app .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .rc-app .seg button{border:none;background:#fff;padding:9px 14px;font-size:13px;cursor:pointer;color:var(--ink)}
+  .rc-app .seg button.on{background:var(--ink);color:#fff}
+  .rc-app .toggle{border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 14px;
+                  font-size:13px;cursor:pointer;color:var(--ink)}
+  .rc-app .toggle.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+  .rc-app .slider{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .rc-app input[type=range]{width:110px}
+  .rc-app .infobar{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 16px}
+  .rc-app .infobar button{border:1px solid var(--line);background:#fbfdfe;border-radius:20px;
+                          padding:6px 13px;font-size:12.5px;cursor:pointer;color:var(--fwd)}
+  .rc-app .infobar button:hover{background:#eef6fb}
+  .rc-app #stage{border:1px solid var(--line);border-radius:10px;background:#fcfdfd;overflow:auto;padding:8px}
+  .rc-app .verdict{margin-top:14px;border-radius:10px;padding:14px 16px;font-size:14px;border:1px solid}
+  .rc-app .verdict.bad{background:#fdf0ef;border-color:#f1c6c2}
+  .rc-app .verdict.ok{background:#eef7f1;border-color:#cfe6d7}
+  .rc-app .verdict b{font-weight:650}
+  .rc-app .formula{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .rc-app .panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+                 padding:16px;margin-top:12px;font-size:14px}
+  .rc-app .panel.show{display:block}
+  .rc-app .panel h3{margin:0 0 8px;font-size:15px}
+  .rc-app .panel p{margin:0 0 9px}
+  .rc-app .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--muted);margin-top:10px}
+  .rc-app .legend span{display:inline-flex;align-items:center;gap:6px}
+  .rc-app .sw{width:22px;height:0;border-top-width:3px;border-top-style:solid}
+</style>
+</head>
+<body>
+
+<!-- ============ SHED SPINE VISUALISATION ============ -->
+<div class="shed-app">
+  <div class="container">
+    <h1>Mountain Refuge Shed Project</h1>
+    <p class="subtitle">A computed spine across three verified minimum antichain partitions</p>
+
+    <div class="controls">
+      <button onclick="showPartition(1, event)" class="partition-btn">Earliest Feasible Layers</button>
+      <button onclick="showPartition(2, event)" class="partition-btn">Middle-Shifted Layers</button>
+      <button onclick="showPartition(3, event)" class="partition-btn">Late Feasible Layers</button>
+      <button onclick="toggleSpine()" id="spine-btn">Show Spine</button>
+      <button onclick="toggleInfo('concept')" class="info-button">What's a Spine?</button>
+      <button onclick="toggleInfo('antichain')" class="info-button">What's an Antichain?</button>
+      <button onclick="toggleInfo('practical')" class="info-button">Why This Matters</button>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:#e74c3c;"></div><span>Chosen spine (longest by task count)</span></div>
+      <div class="legend-item"><div class="legend-box" style="background:#3498db;"></div><span>Regular Task</span></div>
+    </div>
+
+    <div id="graph-container"><svg id="graph" width="1200" height="520"></svg></div>
+
+    <div class="validation-summary" id="validation-summary" role="status"></div>
+
+    <div id="info-concept" class="info-panel">
+      <h3>What's a Project Spine?</h3>
+      <p>A <strong>spine</strong> is a chain paired with an antichain partition whose every part it meets. This finite example selects a chain that is longest by task count and verifies three compatible minimum partitions.</p>
+      <p>The property is existential, not universal: arbitrary antichains or arbitrarily refined partitions need not meet this chosen chain.</p>
+    </div>
+    <div id="info-antichain" class="info-panel">
+      <h3>What's an Antichain?</h3>
+      <p>An <strong>antichain</strong> is a set of pairwise precedence-incomparable tasks. Logical parallelism does not guarantee simultaneous execution once resources, calendars or access constraints are considered.</p>
+      <p>The three layerings shown here are deliberately compatible and programmatically verified; they are not arbitrary management groupings.</p>
+    </div>
+    <div id="info-practical" class="info-panel">
+      <h3>Why This Matters for Project Management</h3>
+      <ul>
+        <li><strong>Topology check:</strong> the spine certifies one task in every verified precedence layer.</li>
+        <li><strong>CPM comparison:</strong> the chosen 17-day chain maximises task count, while the 19-day chain maximises duration. Both are spines for all three displayed partitions; the selection objectives differ.</li>
+        <li><strong>Assurance:</strong> every displayed group is checked against transitive reachability.</li>
+        <li><strong>Use:</strong> compare spine, critical, resource-constrained and high-risk tasks before intervening.</li>
+      </ul>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+</div>
+
+<!-- ============ BRIDGE ============ -->
+<div class="bridge">
+  <div class="rule"></div>
+  <h2>… and where the guarantee runs out</h2>
+  <p>The finite schedule above has a spine, witnessed by each verified minimum partition. This does not mean an arbitrary slicing must meet the same chain. The tool below shows the infinite structural boundary at which Hollom's general guarantee no longer applies.</p>
+  <div class="rule"></div>
+</div>
+
+<!-- ============ NON-VACILLATING REVIEW CYCLE ============ -->
+<div class="rc-app">
+  <div class="wrap">
+    <h1>How a review-cycle model crosses the <em>vacillation</em> boundary</h1>
+    <p class="sub">Theorem 1.18 concerns countable vacillating FAC posets; compare forbidden lexicographic stacking with an independent Cartesian product.</p>
+
+    <div class="controls">
+      <div class="seg" id="mode">
+        <button data-mode="lex" class="on">Lexicographic (rounds dominate)</button>
+        <button data-mode="cart">Cartesian (independent dials)</button>
+      </div>
+      <button class="toggle" id="finiteBtn">Truncate to finite schedule</button>
+      <div class="slider">rounds <input type="range" id="rounds" min="2" max="5" value="4"><b id="roundsV">4</b></div>
+      <div class="slider">depth shown <input type="range" id="depth" min="3" max="7" value="5"><b id="depthV">5</b></div>
+    </div>
+
+    <div class="infobar">
+      <button data-p="finite">Why finite schedules can't do this</button>
+      <button data-p="dirs">The two directions (ω and ω*)</button>
+      <button data-p="lexcart">Lexicographic vs Cartesian</button>
+      <button data-p="spine">Does this kill the spine?</button>
+      <button data-p="p5">What P5 adds</button>
+    </div>
+
+    <div id="stage"><svg id="svg"></svg></div>
+
+    <div class="legend">
+      <span><span class="sw" style="border-color:var(--fwd)"></span> <span id="roundLegend">forward: rounds (ω)</span></span>
+      <span><span class="sw" style="border-color:var(--bwd)"></span> <span id="depthLegend">backward: prerequisite regress (ω*)</span></span>
+      <span><span class="sw" style="border-color:#9aa7b0;border-top-style:dashed"></span> <span id="extentLegend">infinite continuation beyond the displayed window</span></span>
+    </div>
+
+    <div class="verdict" id="verdict"></div>
+
+    <div class="panel" id="panel-finite">
+      <h3>Why a finite schedule can't be non-vacillating</h3>
+      <p>Definition 1.17 says that a poset is <em>vacillating</em> when it has no contiguous chain C for which either C <b>or its reverse C*</b> can be written as <span class="formula">⊔<sub>i∈ω</sub> C<sub>i</sub></span>, with every C<sub>i</sub> infinite and co-wellfounded. It is <em>non-vacillating</em> exactly when such a C exists. The witness is infinite in two ways at once: ω-many blocks, each itself infinite, so no finite poset contains one.</p>
+      <p>Every finite schedule is therefore vacillating — and has a spine for an elementary reason that predates Hollom's result. Mirsky's theorem: layer each task by the length of the longest chain ending at it; those layers are antichains, and any longest chain passes through exactly one task per layer. That chain is a spine. The finite case is elementary; the Aharoni–Korman conjecture becomes difficult for infinite FAC posets.</p>
+    </div>
+    <div class="panel" id="panel-dirs">
+      <h3>The two directions</h3>
+      <p><b>Forward (ω):</b> review rounds R₀, R₁, R₂, … march on without a fixed count. There's a start (R₀) but no end — order type ω.</p>
+      <p><b>Backward (ω*):</b> within a round, the reviewer's concerns regress — to close this one you must first close a finer one beneath it, and so on. There's a top (the round sign-off) but no first task — order type ω*, the reverse of the naturals. You can descend forever, ascend only finitely; that is what "co-wellfounded" means.</p>
+      <p>Your phrasing — one direction left-to-right, one right-to-left — is exactly this opposition of orientations.</p>
+    </div>
+    <div class="panel" id="panel-lexcart">
+      <h3>Lexicographic vs Cartesian — the subtle part</h3>
+      <p>Opposing directions alone don't create the forbidden pattern. <span class="formula">ω × ω*</span> (Cartesian) has both and stays <b>vacillating</b>: the two axes are independent dials. It is not FAC, however, because <span class="formula">{(n,n):n∈ω}</span> is an infinite antichain, so Theorem 1.18 does not apply.</p>
+      <p>The Cartesian product nevertheless has a spine by direct construction. Partition it into difference diagonals <span class="formula">A<sub>d</sub>={(i,j):i−j=d}</span> for <span class="formula">d∈ℤ</span>; each A<sub>d</sub> is an antichain. The boundary chain <span class="formula">{(n,0):n∈ω} ∪ {(0,n):n∈ω}</span> meets every diagonal exactly once.</p>
+      <p><span class="formula">ω ×<sub>lex</sub> ω*</span> (lexicographic) is different — the round index <em>dominates</em>. Every task of round <i>i</i> sits entirely below every task of round <i>i+1</i>; the blue inter-round edge in the diagram abbreviates this all-to-all relation, rather than one sign-off dependency. The structure is <span class="formula">⊔<sub>i∈ω</sub> ω*</span>: ω-many infinite co-wellfounded blocks stacked, precisely the forbidden pattern.</p>
+    </div>
+    <div class="panel" id="panel-spine">
+      <h3>Does non-vacillation kill the spine?</h3>
+      <p>No — and this catches people out. <span class="formula">ω ×<sub>lex</sub> ω*</span> is a total order, i.e. a single chain, so it trivially <em>has</em> a spine: itself, with every antichain a singleton.</p>
+      <p>Leaving the vacillating class only means Theorem 1.18 stops <em>guaranteeing</em> a spine. Existence becomes a separate question to settle structure-by-structure. Within the theorem's countable FAC setting, a spine-free poset must be non-vacillating; non-vacillation is necessary for failure there, not sufficient.</p>
+    </div>
+    <div class="panel" id="panel-p5">
+      <h3>What the real counterexample (P5) adds</h3>
+      <p>Hollom's actual spine-free poset (Example 5.6) is far heavier. It uses ω-many levels L₀, L₁, L₂, …, each a copy of <span class="formula">ω × ω</span>, together with precisely tuned relations between adjacent levels (and fixed relations between more distant levels). It is countable, scattered, FAC and non-vacillating, yet has no spine.</p>
+      <p>P5 has <b>width ℵ₀</b>, meaning that its finite antichains have unbounded size; because it is FAC, it has no actually infinite antichain. The paper does not show that width ℵ₀ causes spine failure: the tuned relations are essential to the construction.</p>
+      <p>The paper flags that it "does not seem easy" to make such an example finite-width — which is why Question 6.1 (does every <em>finite-width</em> poset have a spine?) is still open, even for width 3.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ SHED SPINE (D3) ============ */
+const tasks = {
+  A:{name:"Site Survey",x:40,y:220,duration:2}, B:{name:"Permits",x:180,y:120,duration:5},
+  C:{name:"Materials List",x:180,y:340,duration:1}, D:{name:"Helicopter Booking",x:320,y:60,duration:1},
+  E:{name:"Foundation Prep",x:320,y:220,duration:3}, F:{name:"Materials Delivery",x:460,y:220,duration:1},
+  G:{name:"Foundation Pour",x:600,y:60,duration:2}, H:{name:"Frame Assembly",x:600,y:220,duration:4},
+  I:{name:"Wall Installation",x:740,y:140,duration:3}, J:{name:"Roof Structure",x:600,y:400,duration:3},
+  K:{name:"Safety Rails",x:740,y:360,duration:2}, L:{name:"Emergency Kit",x:320,y:400,duration:1},
+  M:{name:"Weatherproofing",x:880,y:220,duration:2}, N:{name:"Final Inspection",x:1020,y:220,duration:1}
+};
+const dependencies = [
+  ['A','B'],['A','C'],['B','D'],['C','E'],['C','L'],['D','F'],['E','F'],
+  ['F','G'],['F','H'],['F','J'],['G','I'],['H','I'],['J','K'],['J','M'],
+  ['L','K'],['I','M'],['K','N'],['M','N']
+];
+const partitions = {
+  1:{name:"Earliest Feasible Layers",antichains:[['A'],['B','C'],['D','E','L'],['F'],['G','H','J'],['I','K'],['M'],['N']]},
+  2:{name:"Middle-Shifted Layers",antichains:[['A'],['B','C'],['D','E'],['F','L'],['G','H','J'],['I'],['M','K'],['N']]},
+  3:{name:"Late Feasible Layers",antichains:[['A'],['B','C'],['D','E'],['F'],['G','H'],['I','J','L'],['M','K'],['N']]}
+};
+
+function analyzeSchedule(taskMap,edgeList){
+  const ids=Object.keys(taskMap);
+  const successors=Object.fromEntries(ids.map(id=>[id,[]]));
+  const predecessors=Object.fromEntries(ids.map(id=>[id,[]]));
+  edgeList.forEach(function(edge){
+    const from=edge[0],to=edge[1];
+    if(!taskMap[from]||!taskMap[to])throw new Error("Unknown task in dependency "+from+" -> "+to);
+    successors[from].push(to);predecessors[to].push(from);
+  });
+  const indegree=Object.fromEntries(ids.map(id=>[id,predecessors[id].length]));
+  const queue=ids.filter(id=>indegree[id]===0),topologicalOrder=[];
+  while(queue.length){
+    const id=queue.shift();topologicalOrder.push(id);
+    successors[id].forEach(function(next){indegree[next]-=1;if(indegree[next]===0)queue.push(next);});
+  }
+  if(topologicalOrder.length!==ids.length)throw new Error("The dependency graph contains a cycle.");
+  const reachability=Object.fromEntries(ids.map(id=>[id,new Set()]));
+  topologicalOrder.slice().reverse().forEach(function(id){
+    successors[id].forEach(function(next){
+      reachability[id].add(next);
+      reachability[next].forEach(function(descendant){reachability[id].add(descendant);});
+    });
+  });
+  const rank={},chainParent={},durationTotal={},durationParent={};
+  topologicalOrder.forEach(function(id){
+    rank[id]=1;chainParent[id]=null;durationTotal[id]=taskMap[id].duration;durationParent[id]=null;
+    predecessors[id].forEach(function(previous){
+      if(rank[previous]+1>rank[id]){rank[id]=rank[previous]+1;chainParent[id]=previous;}
+      if(durationTotal[previous]+taskMap[id].duration>durationTotal[id]){
+        durationTotal[id]=durationTotal[previous]+taskMap[id].duration;durationParent[id]=previous;
+      }
+    });
+  });
+  function unwind(end,parentMap){const path=[];for(let id=end;id;id=parentMap[id])path.unshift(id);return path;}
+  const heightEnd=topologicalOrder.reduce((best,id)=>rank[id]>rank[best]?id:best);
+  const durationEnd=topologicalOrder.reduce((best,id)=>durationTotal[id]>durationTotal[best]?id:best);
+  return {height:rank[heightEnd],reachability:reachability,spine:unwind(heightEnd,chainParent),
+          criticalPath:unwind(durationEnd,durationParent),criticalDuration:durationTotal[durationEnd]};
+}
+const analysis=analyzeSchedule(tasks,dependencies);
+const spine=analysis.spine;
+function validatePartition(partition){
+  const groups=partition.antichains,flattened=groups.flat(),taskIds=Object.keys(tasks);
+  const coversOnce=flattened.length===taskIds.length&&new Set(flattened).size===taskIds.length&&
+                   taskIds.every(id=>flattened.includes(id));
+  const groupsAreAntichains=groups.every(group=>group.every((left,index)=>
+    group.slice(index+1).every(right=>!analysis.reachability[left].has(right)&&
+                                      !analysis.reachability[right].has(left))));
+  const oneSpineTaskPerGroup=groups.every(group=>group.filter(id=>spine.includes(id)).length===1);
+  const criticalPathMeetsEveryGroup=groups.every(group=>
+    group.filter(id=>analysis.criticalPath.includes(id)).length===1);
+  return {valid:coversOnce&&groupsAreAntichains&&oneSpineTaskPerGroup&&groups.length===analysis.height,
+          criticalPathMeetsEveryGroup:criticalPathMeetsEveryGroup};
+}
+const partitionChecks=Object.fromEntries(Object.entries(partitions).map(entry=>[entry[0],validatePartition(entry[1])]));
+const groupColors=['#3498db','#9b59b6','#1abc9c','#e67e22','#34495e','#16a085','#6c5ce7','#596275'];
+let currentPartition = 0, spineVisible = false;
+
+function initializeGraph(){
+  const svg = d3.select('#graph');
+  svg.append('defs').append('marker')
+    .attr('id','arrowhead').attr('viewBox','0 -5 10 10')
+    .attr('refX',30).attr('refY',0).attr('markerWidth',6).attr('markerHeight',6)
+    .attr('orient','auto').append('path').attr('d','M0,-5L10,0L0,5').attr('fill','#7f8c8d');
+  svg.append('g').attr('class','antichain-groups');
+  const edges = svg.append('g').attr('class','edges');
+  dependencies.forEach(function(pair){
+    const from=pair[0], to=pair[1];
+    const x1=tasks[from].x+50, y1=tasks[from].y+20, x2=tasks[to].x-5, y2=tasks[to].y+20;
+    edges.append('path').attr('class','edge')
+      .attr('d','M'+x1+','+y1+' C'+((x1+x2)/2)+','+y1+' '+((x1+x2)/2)+','+y2+' '+x2+','+y2);
+  });
+  const nodes = svg.append('g').attr('class','nodes');
+  Object.entries(tasks).forEach(function(entry){
+    const id=entry[0], task=entry[1];
+    const g=nodes.append('g').attr('class','node').attr('id','node-'+id)
+      .attr('transform','translate('+task.x+','+task.y+')')
+      .on('mouseenter',function(event){ showTooltip(event,id,task); })
+      .on('mouseleave',hideTooltip);
+    g.append('rect').attr('width',100).attr('height',40).attr('rx',5);
+    g.append('text').attr('x',50).attr('y',25).attr('text-anchor','middle').text(task.name);
+  });
+}
+function showPartition(num, evt){
+  currentPartition = num;
+  const btns = document.querySelectorAll('.shed-app .partition-btn');
+  btns.forEach(function(b){ b.classList.remove('active'); });
+  if(evt && evt.target){ evt.target.classList.add('active'); }
+  else if(btns[num-1]){ btns[num-1].classList.add('active'); }
+
+  d3.selectAll('#graph .node').attr('class','node');
+  d3.selectAll('#graph .antichain-rect').remove();
+
+  const partition=partitions[num],check=partitionChecks[num];
+  partition.antichains.forEach(function(antichain,index){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    antichain.forEach(function(taskId){
+      d3.select('#node-'+taskId).attr('class','node antichain-'+(index+1));
+      const t=tasks[taskId];
+      minX=Math.min(minX,t.x-10); minY=Math.min(minY,t.y-10);
+      maxX=Math.max(maxX,t.x+110); maxY=Math.max(maxY,t.y+50);
+    });
+    d3.select('#graph .antichain-groups').append('rect')
+      .attr('class','antichain-rect antichain-group')
+      .attr('x',minX).attr('y',minY).attr('width',maxX-minX).attr('height',maxY-minY)
+      .attr('fill',groupColors[index%groupColors.length])
+      .attr('stroke',groupColors[index%groupColors.length]);
+  });
+  if(spineVisible){ spine.forEach(function(id){ d3.select('#node-'+id).classed('spine',true); }); }
+  const summary=document.getElementById('validation-summary');
+  summary.className='validation-summary '+(check.valid?'ok':'bad');
+  summary.textContent=check.valid
+    ? partition.name+': verified '+analysis.height+'-part minimum antichain partition; the computed spine '+
+      spine.join(' -> ')+' meets every part exactly once. CPM critical path: '+
+      analysis.criticalPath.join(' -> ')+' ('+analysis.criticalDuration+' days)'+
+      (check.criticalPathMeetsEveryGroup
+        ? '; it also meets every part exactly once and is therefore another spine for this partition. The selected spine maximises task count; CPM maximises duration.'
+        : '.')
+    : partition.name+': validation failed. This grouping is not a valid spine certificate.';
+}
+function toggleSpine(){
+  spineVisible = !spineVisible;
+  const btn = document.getElementById('spine-btn');
+  btn.textContent = spineVisible ? 'Hide Spine' : 'Show Spine';
+  btn.classList.toggle('active');
+  if(spineVisible){ spine.forEach(function(id){ d3.select('#node-'+id).classed('spine',true); }); }
+  else{
+    d3.selectAll('#graph .node').classed('spine',false);
+    if(currentPartition>0) showPartition(currentPartition);
+  }
+}
+function toggleInfo(type){
+  const panel = document.getElementById('info-'+type);
+  const isActive = panel.classList.contains('active');
+  document.querySelectorAll('.shed-app .info-panel').forEach(function(p){ p.classList.remove('active'); });
+  if(!isActive) panel.classList.add('active');
+}
+function showTooltip(event,id,task){
+  const tooltip = document.getElementById('tooltip');
+  const isSpine = spine.indexOf(id) !== -1;
+  tooltip.innerHTML = '<strong>'+task.name+'</strong><br>Duration: '+task.duration+' days'+
+                      (isSpine ? '<br><em>Part of project spine</em>' : '');
+  tooltip.style.left = (event.pageX+10)+'px';
+  tooltip.style.top = (event.pageY-30)+'px';
+  tooltip.style.opacity = 1;
+}
+function hideTooltip(){ document.getElementById('tooltip').style.opacity = 0; }
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){initializeGraph();showPartition(1);});
+else{initializeGraph();showPartition(1);}
+
+/* ============ NON-VACILLATING REVIEW CYCLE (vanilla) ============ */
+(function(){
+  const SVGNS="http://www.w3.org/2000/svg";
+  const svg=document.getElementById("svg");
+  const state={mode:"lex",finite:false,rounds:4,depth:5};
+
+  function EL(tag,attrs,text){
+    const e=document.createElementNS(SVGNS,tag);
+    if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);
+    if(text!=null)e.textContent=text;
+    return e;
+  }
+  function defs(){
+    const d=EL("defs");
+    const mk=function(id,col){
+      const m=EL("marker",{id:id,viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto"});
+      m.appendChild(EL("path",{d:"M0,0 L10,5 L0,10 z",fill:col}));
+      return m;
+    };
+    d.appendChild(mk("aD","#5b6b75"));
+    d.appendChild(mk("aF","#2c7fb8"));
+    return d;
+  }
+  function node(x,y,w,h,label,opt){
+    opt=opt||{};
+    const g=EL("g");
+    const r=EL("rect",{x:x-w/2,y:y-h/2,width:w,height:h,rx:7,
+      fill:opt.fill||"#eaf3fa",stroke:opt.stroke||"#2c7fb8","stroke-width":opt.sw||1.5});
+    if(opt.dash)r.setAttribute("stroke-dasharray","5,4");
+    g.appendChild(r);
+    const t=EL("text",{x:x,y:y+4,"text-anchor":"middle","font-size":opt.fs||11,
+      fill:opt.tc||"#23303a","font-weight":opt.fw||500});
+    t.textContent=label; g.appendChild(t);
+    return g;
+  }
+  function arrow(x1,y1,x2,y2,marker,col,dash){
+    const l=EL("line",{x1:x1,y1:y1,x2:x2,y2:y2,stroke:col||"#5b6b75","stroke-width":1.6,"marker-end":"url(#"+marker+")"});
+    if(dash)l.setAttribute("stroke-dasharray","5,4");
+    return l;
+  }
+  function txt(x,y,s,o){o=o||{};return EL("text",{x:x,y:y,"text-anchor":o.anchor||"start",
+      "font-size":o.fs||12,fill:o.fill||"#6b7d8a","font-style":o.it?"italic":"normal",
+      "font-weight":o.fw||400,transform:o.rot||""},s);}
+  function clear(){while(svg.firstChild)svg.removeChild(svg.firstChild);svg.appendChild(defs());}
+
+  function renderLex(){
+    const N=state.rounds, D=state.depth;
+    const x0=140, colGap=200, capY=118, step=46, w=158, h=30;
+    const W=x0+(N-1)*colGap+w/2+60;
+    const bottomY=capY+(D-1)*step;
+    const H=bottomY+(state.finite?step:step+8)+100;
+    svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width",W); svg.setAttribute("height",H);
+
+    svg.appendChild(arrow(70,58,W-30,58,"aF","#2c7fb8"));
+    svg.appendChild(txt(8,44,"rounds  R\u2080 R\u2081 R\u2082 \u2026  (\u03c9) \u2192",{fill:"#2c7fb8",fw:600,fs:12.5}));
+    svg.appendChild(arrow(40,capY-6,40,bottomY+30,"aD","#d9534f"));
+    svg.appendChild(txt(0,0,"regress (\u03c9*)",{fill:"#d9534f",fw:600,fs:12,rot:"translate(22,"+(bottomY+30)+") rotate(-90)"}));
+
+    for(let i=0;i<N;i++){
+      const cx=x0+i*colGap;
+      if(i<N-1){
+        const nx=x0+(i+1)*colGap;
+        svg.appendChild(arrow(cx+w/2,capY,nx-w/2,capY,"aF","#2c7fb8"));
+        svg.appendChild(txt((cx+nx)/2,capY-12,"all-to-all (abbrev.)",{anchor:"middle",fill:"#2c7fb8",fs:9.5,fw:600}));
+      }
+      svg.appendChild(node(cx,capY,w,h,"R"+i+": sign-off",{fill:"#dfeefa",stroke:"#2c7fb8",fw:600}));
+      for(let k=1;k<D;k++){
+        const y=capY+k*step;
+        svg.appendChild(arrow(cx,y-h/2-2,cx,capY+(k-1)*step+h/2+2,"aD","#d9534f"));
+        svg.appendChild(node(cx,y,w,h,"\u21b3 prereq \u2212"+k,{fill:"#fdeeee",stroke:"#d9534f",fs:11}));
+      }
+      const by=capY+D*step;
+      if(state.finite){
+        svg.appendChild(arrow(cx,by-h/2-2,cx,capY+(D-1)*step+h/2+2,"aD","#2e8b57"));
+        svg.appendChild(node(cx,by,w,h,"R"+i+": kickoff (base)",{fill:"#e9f6ee",stroke:"#2e8b57",fw:600,fs:11}));
+      }else{
+        svg.appendChild(txt(cx,by-6,"\u22ee",{anchor:"middle",fs:22,fill:"#9aa7b0",fw:700}));
+        svg.appendChild(node(cx,by+18,w,26,"no first task",{fill:"#f4f6f7",stroke:"#9aa7b0",dash:true,fs:10.5,tc:"#9aa7b0"}));
+      }
+      svg.appendChild(txt(cx,capY-30,"co-wf block",{anchor:"middle",fs:10.5,it:true,fill:"#8a99a3"}));
+    }
+    svg.appendChild(txt(W/2,H-18,"Each blue bridge abbreviates: every element of R_i is below every element of R_(i+1).",
+      {anchor:"middle",fs:10.5,it:true,fill:"#2c7fb8"}));
+  }
+  function renderCart(){
+    const N=state.rounds, D=Math.min(state.depth,5);
+    const x0=150, gx=150, y0=130, gy=74, r=9;
+    const lastX=x0+(N-1)*gx, lastY=y0+(D-1)*gy;
+    const W=lastX+90, H=lastY+(state.finite?96:118);
+    svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width",W); svg.setAttribute("height",H);
+
+    svg.appendChild(arrow(x0-40,y0-44,W-40,y0-44,"aF","#2c7fb8"));
+    svg.appendChild(txt(x0-40,y0-58,state.finite?"finite rounds 0\u2026"+(N-1)+" \u2192":"\u03c9 \u2192",
+      {fill:"#2c7fb8",fw:600,fs:13}));
+    svg.appendChild(arrow(60,y0+(D-1)*gy+24,60,y0-20,"aD","#d9534f"));
+    svg.appendChild(txt(0,0,state.finite?"finite depth \u2191":"\u03c9* \u2191",
+      {fill:"#d9534f",fw:600,fs:13,rot:"translate(40,"+(y0+(D-1)*gy+24)+") rotate(-90)"}));
+
+    for(let i=0;i<N;i++)for(let j=0;j<D;j++){
+      const x=x0+i*gx, y=y0+j*gy;
+      if(i<N-1)svg.appendChild(arrow(x+r+2,y,x+gx-r-2,y,"aF","#2c7fb8"));
+      if(j>0)svg.appendChild(arrow(x,y-r-2,x,y-gy+r+2,"aD","#d9534f"));
+    }
+    for(let i=0;i<N;i++)for(let j=0;j<D;j++){
+      const x=x0+i*gx, y=y0+j*gy;
+      svg.appendChild(EL("circle",{cx:x,cy:y,r:r,fill:"#eef3f5",stroke:"#5b6b75","stroke-width":1.6}));
+      svg.appendChild(txt(x,y+24,"("+i+","+j+")",{anchor:"middle",fs:10,fill:"#8a99a3"}));
+    }
+    if(state.finite){
+      svg.appendChild(txt(W/2,lastY+62,"finite Cartesian grid: both axes end at the displayed caps",
+        {anchor:"middle",fs:11.5,fill:"#6b7d8a",it:true}));
+    }else{
+      svg.appendChild(EL("line",{x1:lastX+r+8,y1:y0,x2:lastX+48,y2:y0,stroke:"#9aa7b0",
+        "stroke-width":1.5,"stroke-dasharray":"5,4"}));
+      svg.appendChild(txt(lastX+60,y0+4,"\u2026",{anchor:"middle",fs:18,fill:"#9aa7b0",fw:700}));
+      svg.appendChild(EL("line",{x1:x0,y1:lastY+33,x2:x0,y2:lastY+55,stroke:"#9aa7b0",
+        "stroke-width":1.5,"stroke-dasharray":"5,4"}));
+      svg.appendChild(txt(x0,lastY+77,"\u22ee",{anchor:"middle",fs:20,fill:"#9aa7b0",fw:700}));
+      svg.appendChild(txt(W/2,lastY+101,"displayed window only: both independent axes continue",
+        {anchor:"middle",fs:11.5,fill:"#6b7d8a",it:true}));
+    }
+  }
+  function setExtentLabels(){
+    document.getElementById("roundLegend").textContent=state.finite
+      ? "forward: finitely many rounds"
+      : "forward: rounds (\u03c9)";
+    document.getElementById("depthLegend").textContent=state.finite
+      ? "backward: finite prerequisite depth"
+      : "backward: prerequisite regress (\u03c9*)";
+    document.getElementById("extentLegend").textContent=state.finite
+      ? "finite caps; no continuation beyond the displayed model"
+      : "infinite continuation beyond the displayed window";
+  }
+  function setVerdict(){
+    const v=document.getElementById("verdict");
+    let cls,html;
+    if(state.mode==="lex" && !state.finite){
+      cls="bad";
+      html='<b>NON-VACILLATING.</b> This countable FAC total order is <span class="formula">\u03c9 \u00d7<sub>lex</sub> \u03c9* = \u2294<sub>i\u2208\u03c9</sub> \u03c9*</span>: \u03c9-many infinite co-wellfounded blocks, each entirely below the next. Theorem 1.18 requires countability, vacillation and FAC, so it gives no conclusion here because vacillation fails. The poset nevertheless has a spine because the whole order is a chain.';
+    }else if(state.mode==="lex" && state.finite){
+      cls="ok";
+      html='<b>VACILLATING (finite).</b> Both axes are capped at the displayed round count and prerequisite depth, so this is a finite chain and cannot contain the forbidden witness. Its spine is simply itself; more generally, every finite poset has a spine by Mirsky\u2019s height partition.';
+    }else if(state.mode==="cart" && state.finite){
+      cls="ok";
+      html='<b>VACILLATING (finite).</b> Both Cartesian axes now end at the displayed caps. This finite poset is FAC and has a spine by Mirsky\u2019s height partition; the finite difference diagonals and their boundary chain also give a direct certificate.';
+    }else{
+      cls="ok";
+      html='<b>VACILLATING, BUT NOT FAC.</b> <span class="formula">\u03c9 \u00d7 \u03c9*</span> combines the directions as independent dials, so it avoids the forbidden lexicographic stack. But <span class="formula">{(n,n):n\u2208\u03c9}</span> is an infinite antichain, so Theorem 1.18 does not apply. A spine still exists by a separate certificate: difference-diagonal antichains <span class="formula">A<sub>d</sub>={(i,j):i\u2212j=d}</span> are met by the boundary chain <span class="formula">{(n,0)} \u222a {(0,n)}</span>.';
+    }
+    v.className="verdict "+cls; v.innerHTML=html;
+  }
+  function render(){ clear(); setExtentLabels(); if(state.mode==="lex")renderLex();else renderCart(); setVerdict(); }
+
+  document.querySelectorAll("#mode button").forEach(function(b){
+    b.addEventListener("click",function(){
+      state.mode=b.dataset.mode;
+      document.querySelectorAll("#mode button").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on"); render();
+    });
+  });
+  const fb=document.getElementById("finiteBtn");
+  fb.addEventListener("click",function(){
+    state.finite=!state.finite;
+    fb.classList.toggle("on",state.finite);
+    fb.textContent=state.finite?"Restore indeterminate cycle":"Truncate to finite schedule";
+    render();
+  });
+  const rs=document.getElementById("rounds"), rv=document.getElementById("roundsV");
+  rs.addEventListener("input",function(){state.rounds=+rs.value;rv.textContent=rs.value;render();});
+  const ds=document.getElementById("depth"), dv=document.getElementById("depthV");
+  ds.addEventListener("input",function(){state.depth=+ds.value;dv.textContent=ds.value;render();});
+
+  document.querySelectorAll(".infobar button").forEach(function(b){
+    b.addEventListener("click",function(){
+      const id="panel-"+b.dataset.p;
+      document.querySelectorAll(".panel").forEach(function(p){
+        if(p.id===id)p.classList.toggle("show");else p.classList.remove("show");
+      });
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>
