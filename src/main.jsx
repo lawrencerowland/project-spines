@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import ScheduleSpineExplainer from "./ScheduleSpineExplainer.jsx";
 import StandaloneExperiment from "./StandaloneExperiment.jsx";
+import { ReviewLoopTakeaway, SliceAuditTakeaway } from "./PlannerTakeaways.jsx";
 import "./styles.css";
 
 const experimentBase = import.meta.env.BASE_URL + "experiments/";
@@ -14,6 +15,7 @@ const tabs = [
     summary:
       "The native React walkthrough: precedence and incomparability, Dilworth lanes, spines, infinite limits, P5, and the theorem classifier.",
     kind: "native",
+    component: ScheduleSpineExplainer,
   },
   {
     id: "shed-construction",
@@ -23,6 +25,24 @@ const tabs = [
       "A five-step finite-DAG construction with three verified minimum antichain partitions and a separate CPM selector.",
     kind: "embedded",
     src: experimentBase + "shed-spine-construction.html",
+  },
+  {
+    id: "slice-audit",
+    eyebrow: "Planner audit",
+    title: "Antichain slice audit",
+    summary:
+      "A senior-planner mental model for testing whether planned concurrency is a real antichain surface that honours the spine.",
+    kind: "native",
+    component: SliceAuditTakeaway,
+  },
+  {
+    id: "review-loop-diagnosis",
+    eyebrow: "Loop diagnosis",
+    title: "Left/right review loops",
+    summary:
+      "A project-control translation of the infinite-boundary intuition: version the artefact when authority from the left needs evidence from the right.",
+    kind: "native",
+    component: ReviewLoopTakeaway,
   },
   {
     id: "vacillation-boundary",
@@ -90,9 +110,9 @@ function App() {
         <p className="project-kicker">Project controls / posets / schedule structure</p>
         <h1>Project Spines</h1>
         <p>
-          Four complete, preserved experiments: one native React theory explorer
-          and three isolated interactive applications brought together behind a
-          single durable tabbed interface.
+          A six-part learning journey: formal schedule-spine theory, finite
+          construction, planner-facing antichain audits, review-loop diagnosis,
+          infinite boundary cases, and a director-facing project-controls demo.
         </p>
       </header>
 
@@ -128,6 +148,7 @@ function App() {
       <div className="project-panels">
         {tabs.map((tab) => {
           const selected = tab.id === activeId;
+          const NativeComponent = tab.component;
           return (
             <section
               id={"panel-" + tab.id}
@@ -138,7 +159,7 @@ function App() {
               className={tab.kind === "native" ? "tab-panel native-panel" : "tab-panel"}
             >
               {tab.kind === "native" ? (
-                <ScheduleSpineExplainer />
+                <NativeComponent />
               ) : (
                 <StandaloneExperiment
                   src={tab.src}
