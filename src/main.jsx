@@ -115,6 +115,11 @@ function App() {
           infinite boundary cases, and a director-facing project-controls demo.
         </p>
       </header>
+<section className="pw-scenario" aria-label="Scenario and motivating question">
+  <figure><img src="https://lawrencerowland.github.io/gimmer-crag-project-mountain-refuge/input/processes%20to%20plans%20for%20Gimmer.PNG" alt="Illustrated mountain refuge used to motivate the finite shed example" width="640" height="400" decoding="async" /><figcaption>Shared refuge illustration. The spine experiments supply their own finite dependency model.</figcaption></figure>
+  <div><p className="pw-kicker">Toy scenario</p><h2>Build a mountain-refuge shed, one dependency at a time.</h2><p>Prepare the base, assemble the structure and make the shed weatherproof. Some activities must follow others; some are incomparable in the model. Use this finite build to inspect chains, cross-project slices and review gates before tackling the more abstract examples.</p><p className="pw-question">What does the order of work tell us that calendar dates alone do not?</p></div>
+</section>
+
 
       <nav className="project-tabs" role="tablist" aria-label="Project Spines views">
         {tabs.map((tab, index) => {
