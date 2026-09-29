@@ -1,0 +1,16 @@
+/* Shared return links only; the standalone experiments keep their own styles. */
+.spines-return-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0 auto 18px;
+  max-width: 1400px;
+  padding: 12px 16px;
+  border: 1px solid #d5dacf;
+  border-radius: 6px;
+  background: #f8f6ef;
+  color: #233d38;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+.spines-return-nav a { display: inline-block; padding: 8px 0; color: #215b46; text-underline-offset: 4px; }
+.spines-return-nav a:focus-visible { outline: 3px solid #9b612e; outline-offset: 4px; }
